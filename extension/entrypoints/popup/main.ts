@@ -74,7 +74,16 @@ document.querySelector<HTMLButtonElement>('#scan')!.addEventListener('click', as
   status.textContent = '正在扫描…'
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true })
   if (!tab.id) { status.textContent = '无法读取当前标签页'; return }
-  const scan = await browser.tabs.sendMessage(tab.id, { type: 'APPLYMATE_SCAN' }) as { fields: ScannedField[] }
+  let scan: { fields: ScannedField[] }
+  try {
+    scan = await Promise.race([
+      browser.tabs.sendMessage(tab.id, { type: 'APPLYMATE_SCAN' }) as Promise<{ fields: ScannedField[] }>,
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('SCAN_TIMEOUT')), 8000)),
+    ])
+  } catch {
+    status.textContent = '扫描未响应。请刷新当前网页；若刚更新扩展，请在扩展管理页重新加载后重试。'
+    return
+  }
   const stored = await browser.storage.local.get(['applymateToken', 'applymateApiBase'])
   const keys = [...new Set(scan.fields.map(field => field.fieldKey).filter((key): key is string => Boolean(key)))]
   if (!stored.applymateToken || !stored.applymateApiBase) {
