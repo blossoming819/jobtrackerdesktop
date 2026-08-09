@@ -91,10 +91,17 @@ document.querySelector<HTMLButtonElement>('#scan')!.addEventListener('click', as
     result.textContent = JSON.stringify(scan.fields, null, 2)
     return
   }
+  if (keys.length === 0) {
+    fillPlan = []
+    fillButton.disabled = true
+    status.textContent = `扫描完成，发现 ${scan.fields.length} 个表单控件，但未识别到可自动填写的字段。请在结果中查看控件标签。`
+    result.textContent = JSON.stringify(scan.fields, null, 2)
+    return
+  }
   try {
     const response = await fetch(`${stored.applymateApiBase}/profile/values?${keys.map(key => `keys=${encodeURIComponent(key)}`).join('&')}`, { headers: { Authorization: `Bearer ${stored.applymateToken}` } })
     const body = await response.json()
-    if (!response.ok || !body?.data) throw new Error('PROFILE_READ_FAILED')
+    if (!response.ok || !body?.data) throw new Error(`PROFILE_READ_FAILED:${response.status}:${body?.message || ''}`)
     fillPlan = scan.fields.flatMap(field => {
       if (!field.fieldKey || body.data[field.fieldKey] === undefined) return []
       const raw = String(body.data[field.fieldKey])
@@ -104,7 +111,10 @@ document.querySelector<HTMLButtonElement>('#scan')!.addEventListener('click', as
     fillButton.disabled = fillPlan.length === 0
     status.textContent = `已生成 ${fillPlan.length} 项填写计划；请核对后点击“确认填写”。`
     result.textContent = JSON.stringify(fillPlan.map(({ index, fieldKey, label, value }) => ({ index, fieldKey, label, value })), null, 2)
-  } catch { status.textContent = '无法读取档案字段。请确认扩展已配对且目标服务仍在运行。' }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    status.textContent = message.includes('401') || message.includes('403') ? '配对令牌无效或尚未领取。请点击“完成配对”后重试。' : `无法读取档案字段（${message || '网络请求失败'}）。请确认目标服务仍在运行。`
+  }
 })
 
 fillButton.addEventListener('click', async () => {
