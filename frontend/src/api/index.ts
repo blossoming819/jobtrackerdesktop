@@ -1,5 +1,5 @@
 import http from './http'
-import type { InterviewNote, InterviewRecord, JobApplication, NoteItem, Reminder } from '../types'
+import type { CandidateProfileResponse, InterviewNote, InterviewRecord, JobApplication, NoteItem, ProfileSnapshot, Reminder } from '../types'
 
 export const statusOptions = ['收藏', '待投递', '已投递', '笔试', '面试中', '一面', '二面', '三面', '四面', '主管面', 'HR 面', 'Offer', '淘汰']
 export const typeOptions = [
@@ -84,4 +84,11 @@ export const dashboardApi = { overview: () => http.get('/dashboard') }
 export const storageApi = {
   get: () => http.get('/storage'),
   update: (data: { resumeDir: string; noteDir: string; generalNoteDir: string }) => http.put('/storage', data)
+}
+
+export const candidateProfileApi = {
+  get: () => http.get('/applymate/v1/profile') as Promise<CandidateProfileResponse>,
+  save: (content: Record<string, unknown>) => http.put('/applymate/v1/profile', content) as Promise<CandidateProfileResponse>,
+  snapshots: () => http.get('/applymate/v1/profile/snapshots') as Promise<ProfileSnapshot[]>,
+  restore: (id: number) => http.put(`/applymate/v1/profile/snapshots/${id}/restore`) as Promise<CandidateProfileResponse>
 }

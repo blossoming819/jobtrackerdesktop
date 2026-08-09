@@ -27,5 +27,5 @@
     },
     "enabled": { "type": "boolean", "default": false }
   },
-  "description": "Secrets are deliberately excluded. API keys are stored only in local secret storage."
+  "description": "Secrets are deliberately excluded. Runtime YAML references API keys through environment variables only."
 }

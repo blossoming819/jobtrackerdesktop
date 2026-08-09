@@ -6,6 +6,7 @@ import Resume from './views/Resume.vue'
 import Reminder from './views/Reminder.vue'
 import Notes from './views/Notes.vue'
 import Settings from './views/Settings.vue'
+import CandidateProfile from './views/CandidateProfile.vue'
 
 export default createRouter({
   history: createWebHistory(),
@@ -17,6 +18,7 @@ export default createRouter({
     { path: '/resume', component: Resume },
     { path: '/notes', component: Notes },
     { path: '/reminder', component: Reminder },
+    { path: '/profile', component: CandidateProfile },
     { path: '/settings', component: Settings }
   ]
 })

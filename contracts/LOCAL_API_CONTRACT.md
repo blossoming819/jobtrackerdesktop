@@ -63,7 +63,7 @@ Creates a parsing draft, not a direct Profile update. Request options:
 
 If extraction quality is insufficient and vision is not permitted, the response is `VISION_RECOMMENDED` with no file content sent to a provider.
 
-The request resolves a user-selected local `LlmProvider` configuration. Provider names and models are not part of this public endpoint contract; the service validates that the selected provider supports structured output and, when requested, vision input.
+The request resolves the local YAML task route. Provider names, API keys and models are not part of this public endpoint contract; the service validates that the selected candidate supports structured output and, when requested, vision input. A recoverable provider outage may move to the next configured candidate; credential and validation errors are returned directly.
 
 ### `POST /profile/diff`
 

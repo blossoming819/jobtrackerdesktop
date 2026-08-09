@@ -33,6 +33,8 @@ ResumeParseService / LowConfidenceMatchService
 
 Provider 能力由配置明确声明：`structuredOutput`、`visionInput`、`jsonSchema`、`streaming`。简历解析默认只要求 `structuredOutput`；只有用户选择视觉兜底且当前 Provider 声明 `visionInput=true` 时，才允许发送页面图像。若不支持视觉，则返回可解释的 `VISION_UNAVAILABLE`，而非临时换用其他厂商或静默降级。
 
+Provider 和模型选择采用本地 YAML 配置，凭证只从环境变量读取。每个任务可以配置有序候选（例如 `qwen → deepseek`）；服务只会在超时、限流或服务端暂不可用等可恢复错误时，经过熔断判断后尝试下一候选。API Key 缺失/无效、请求参数无效、内容安全拒绝和结构化结果校验失败均不跨厂商静默重试，必须显示具体原因。视觉解析会单独过滤 `visionInput=true` 的候选；无可用候选时明确提示用户配置视觉模型。
+
 ### D-02：扩展发布与本地服务可用性
 
 开发期使用 Chrome/Edge 的“加载已解压扩展”。发布期准备 Chrome Web Store 包，但不依赖商店安装完成后才验证核心功能。

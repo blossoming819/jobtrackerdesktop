@@ -93,3 +93,17 @@ export interface NoteItem {
   updatedTime?: string
   children?: NoteItem[]
 }
+
+export interface CandidateProfileResponse {
+  profileId: string
+  schemaVersion: string
+  revision: number
+  content: Record<string, unknown>
+  updatedAt?: string
+}
+
+export interface ProfileSnapshot {
+  id: number
+  revision: number
+  createdAt?: string
+}

@@ -28,3 +28,38 @@ job-tracker:
     resume-dir: ./data/resumes
     note-dir: ./data/interview_notes
     general-note-dir: ./data/notes
+
+applymate:
+  llm:
+    # YAML selects providers/models and routing only. Never place a raw API key here.
+    circuit-breaker:
+      failure-threshold: 3
+      open-duration-seconds: 60
+    providers:
+      qwen:
+        enabled: true
+        base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+        api-key: ${APPLYMATE_QWEN_API_KEY:}
+        model: qwen-plus
+        capabilities:
+          structured-output: true
+          vision-input: false
+          json-schema: false
+          streaming: true
+      deepseek:
+        enabled: true
+        base-url: https://api.deepseek.com
+        api-key: ${APPLYMATE_DEEPSEEK_API_KEY:}
+        model: deepseek-chat
+        capabilities:
+          structured-output: true
+          vision-input: false
+          json-schema: false
+          streaming: true
+    routes:
+      resume-parse:
+        candidates: [qwen, deepseek]
+      low-confidence-field-match:
+        candidates: [qwen, deepseek]
+      resume-vision:
+        candidates: [] # Configure only providers with vision-input: true.

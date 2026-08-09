@@ -16,6 +16,7 @@
         <el-menu-item index="/applications" :title="sidebarCollapsed ? '投递管理' : ''"><el-icon><FolderOpened /></el-icon><template #title><span class="menu-label">投递管理</span></template></el-menu-item>
         <el-menu-item index="/resume" :title="sidebarCollapsed ? '简历管理' : ''"><el-icon><Document /></el-icon><template #title><span class="menu-label">简历管理</span></template></el-menu-item>
         <el-menu-item index="/notes" :title="sidebarCollapsed ? '笔记管理' : ''"><el-icon><Memo /></el-icon><template #title><span class="menu-label">笔记管理</span></template></el-menu-item>
+        <el-menu-item index="/profile" :title="sidebarCollapsed ? '个人档案' : ''"><el-icon><User /></el-icon><template #title><span class="menu-label">个人档案</span></template></el-menu-item>
         <el-menu-item index="/reminder" :title="sidebarCollapsed ? '日程管理' : ''"><el-icon><Bell /></el-icon><template #title><span class="menu-label">日程管理</span></template></el-menu-item>
         <el-menu-item index="/settings" :title="sidebarCollapsed ? '系统设置' : ''"><el-icon><Setting /></el-icon><template #title><span class="menu-label">系统设置</span></template></el-menu-item>
       </el-menu>
@@ -66,7 +67,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Bell, Close, DataBoard, Document, Expand, Fold, FolderOpened, Memo, Setting } from '@element-plus/icons-vue'
+import { Bell, Close, DataBoard, Document, Expand, Fold, FolderOpened, Memo, Setting, User } from '@element-plus/icons-vue'
 import { reminderApi } from './api'
 import type { Reminder } from './types'
 
@@ -103,7 +104,7 @@ watch(() => route.fullPath, loadReminderWarning)
 
 function tabLabel(path: string) {
   if (path.startsWith('/application/')) return '岗位详情'
-  return ({ '/dashboard': 'Dashboard', '/applications': '投递管理', '/resume': '简历管理', '/notes': '笔记管理', '/reminder': '日程管理', '/settings': '系统设置' } as Record<string, string>)[path] || '工作页'
+  return ({ '/dashboard': 'Dashboard', '/applications': '投递管理', '/resume': '简历管理', '/notes': '笔记管理', '/reminder': '日程管理', '/profile': '个人档案', '/settings': '系统设置' } as Record<string, string>)[path] || '工作页'
 }
 
 function syncWorkspaceTab() {
