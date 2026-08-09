@@ -10,6 +10,8 @@ desktop/resources/runtime/
 
 # Dependencies
 frontend/node_modules/
+extension/node_modules/
+extension/.output/
 desktop/node_modules/
 
 # Local runtime data

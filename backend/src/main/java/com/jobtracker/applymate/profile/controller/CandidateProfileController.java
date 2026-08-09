@@ -3,7 +3,9 @@ package com.jobtracker.applymate.profile.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.jobtracker.applymate.profile.dto.CandidateProfileResponse;
 import com.jobtracker.applymate.profile.dto.ProfileSnapshotResponse;
+import com.jobtracker.applymate.profile.dto.ProfileDiffResponse;
 import com.jobtracker.applymate.profile.service.CandidateProfileService;
+import com.jobtracker.applymate.profile.service.ProfileDiffService;
 import com.jobtracker.common.Result;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +22,7 @@ import java.util.List;
 @RequestMapping("/api/applymate/v1/profile")
 public class CandidateProfileController {
     private final CandidateProfileService candidateProfileService;
+    private final ProfileDiffService profileDiffService;
 
     @GetMapping
     public Result<CandidateProfileResponse> current() {
@@ -34,6 +37,11 @@ public class CandidateProfileController {
     @GetMapping("/snapshots")
     public Result<List<ProfileSnapshotResponse>> snapshots() {
         return Result.ok(candidateProfileService.snapshots());
+    }
+
+    @PutMapping("/diff")
+    public Result<ProfileDiffResponse> diff(@RequestBody JsonNode draft) {
+        return Result.ok(profileDiffService.compare(candidateProfileService.current().content(), draft));
     }
 
     @PutMapping("/snapshots/{snapshotId}/restore")
