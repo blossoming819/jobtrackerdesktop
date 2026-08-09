@@ -1,3 +1,5 @@
+import './style.css'
+
 const status = document.querySelector<HTMLParagraphElement>('#status')!
 const result = document.querySelector<HTMLPreElement>('#result')!
 const service = document.querySelector<HTMLSelectElement>('#service')!

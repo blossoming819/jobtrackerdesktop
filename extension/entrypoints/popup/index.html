@@ -1,1 +1,41 @@
-<html><body><main><h1>ApplyMate</h1><label>服务来源 <select id="service"><option value="auto">自动选择（推荐）</option><option value="web">Web 后端（8080）</option><option value="desktop">桌面端服务（18080）</option></select></label><p id="status">正在检查本地服务…</p><button id="connect">创建配对请求</button><button id="claim">完成配对</button><button id="scan">扫描并生成填写计划</button><button id="fill" disabled>确认填写</button><pre id="result"></pre><script type="module" src="./main.ts"></script></main></body></html>
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ApplyMate</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div class="brand-mark" aria-hidden="true">A</div>
+        <div><p class="eyebrow">JOBTRACKER · APPLYMATE</p><h1>智能填写助手</h1></div>
+        <span class="version">0.1</span>
+      </header>
+
+      <section class="connection-card" aria-live="polite">
+        <div class="connection-heading"><span class="status-dot"></span><strong>本地服务</strong><span class="connection-state">已检测</span></div>
+        <p id="status">正在检查本地服务…</p>
+        <label class="field-label" for="service">服务来源</label>
+        <select id="service"><option value="auto">自动选择（推荐）</option><option value="web">Web 后端 · 8080</option><option value="desktop">桌面端服务 · 18080</option></select>
+      </section>
+
+      <section class="workflow-card">
+        <div class="section-heading"><div><p class="eyebrow">SECURE PAIRING</p><h2>连接扩展</h2></div><span class="step-pill">步骤 1 / 2</span></div>
+        <p class="helper">先在当前服务的“个人档案”中批准本次请求，再领取仅限本机使用的访问令牌。</p>
+        <div class="button-grid"><button id="connect" class="button secondary"><span>1</span>创建配对请求</button><button id="claim" class="button primary"><span>2</span>完成配对</button></div>
+      </section>
+
+      <section class="workflow-card">
+        <div class="section-heading"><div><p class="eyebrow">FILL PLAN</p><h2>扫描与填写</h2></div><span class="step-pill">需确认</span></div>
+        <p class="helper">扫描只读取表单结构；填写前会显示计划，绝不自动提交表单或处理密码、验证码。</p>
+        <button id="scan" class="button full secondary">扫描并生成填写计划</button>
+        <button id="fill" class="button full primary" disabled>确认填写</button>
+      </section>
+
+      <details class="result-card"><summary>查看扫描与填写结果</summary><pre id="result">尚未执行操作</pre></details>
+      <footer><span class="shield">◆</span> 只在你确认后填写；请在目标网页中复核信息。</footer>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
