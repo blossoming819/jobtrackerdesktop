@@ -50,7 +50,7 @@ applymate:
         enabled: true
         base-url: https://api.deepseek.com
         api-key: ${APPLYMATE_DEEPSEEK_API_KEY:}
-        model: deepseek-chat
+        model: deepseek-v4-flash
         capabilities:
           structured-output: true
           vision-input: false
