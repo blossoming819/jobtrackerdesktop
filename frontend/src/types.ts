@@ -112,6 +112,6 @@ export interface ExtensionPairing {
   id: number
   extensionId: string
   displayName?: string
-  status: 'PENDING' | 'APPROVED' | 'CLAIMED'
+  status: 'PENDING' | 'APPROVED' | 'CLAIMED' | 'REVOKED'
   createdTime?: string
 }

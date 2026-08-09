@@ -96,5 +96,7 @@ export const candidateProfileApi = {
 
 export const pairingApi = {
   pending: () => http.get('/applymate/v1/pairing/pending') as Promise<ExtensionPairing[]>,
-  approve: (id: number) => http.post(`/applymate/v1/pairing/${id}/approve`) as Promise<{ requestId: number, status: string }>
+  authorized: () => http.get('/applymate/v1/pairing/authorized') as Promise<ExtensionPairing[]>,
+  approve: (id: number) => http.post(`/applymate/v1/pairing/${id}/approve`) as Promise<{ requestId: number, status: string }>,
+  revoke: (id: number) => http.delete(`/applymate/v1/pairing/${id}`)
 }

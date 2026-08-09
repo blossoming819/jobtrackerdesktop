@@ -25,7 +25,11 @@ function serviceName(endpoint: string) { return endpoint === endpoints.web ? 'We
 async function checkService() {
   try {
     const endpoint = await getApiBase()
-    status.textContent = `已连接${serviceName(endpoint)}。扫描后可申请配对。`
+    const saved = await browser.storage.local.get(['applymateToken', 'applymateApiBase'])
+    const paired = Boolean(saved.applymateToken && saved.applymateApiBase === endpoint)
+    status.textContent = paired ? `已配对${serviceName(endpoint)}。可直接扫描并生成填写计划。` : `已连接${serviceName(endpoint)}。扫描前请先完成配对。`
+    connect.disabled = paired
+    claim.disabled = paired
   } catch { status.textContent = '本地服务未启动：仍可扫描页面，无法读取档案或填写。' }
 }
 
@@ -45,6 +49,8 @@ connect.addEventListener('click', async () => {
   status.textContent = '正在创建配对请求…'
   try {
     const apiBase = await getApiBase()
+    const saved = await browser.storage.local.get(['applymateToken', 'applymateApiBase'])
+    if (saved.applymateToken && saved.applymateApiBase === apiBase) { status.textContent = `已配对${serviceName(apiBase)}，无需重复申请。`; return }
     const request = await fetch(`${apiBase}/pairing/requests`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ extensionId: browser.runtime.id, displayName: 'ApplyMate 浏览器扩展' }) })
     const body = await request.json()
     await browser.storage.local.set({ applymatePairingRequestId: body.data.requestId, applymateClaimSecret: body.data.claimSecret, applymateApiBase: apiBase })
@@ -68,6 +74,8 @@ claim.addEventListener('click', async () => {
     await browser.storage.local.set({ applymateToken: body.data.token })
     await browser.storage.local.remove(['applymateClaimSecret'])
     status.textContent = `已配对${serviceName(stored.applymateApiBase)}，可以安全读取允许填写的档案字段。`
+    connect.disabled = true
+    claim.disabled = true
   } catch { status.textContent = '尚未获得批准或令牌领取失败，请返回个人档案页确认请求状态。' }
 })
 document.querySelector<HTMLButtonElement>('#scan')!.addEventListener('click', async () => {
