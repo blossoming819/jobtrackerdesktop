@@ -35,6 +35,7 @@
           <div class="resume-row-actions">
             <el-button size="small" :disabled="row.fileType !== 'pdf'" @click="preview(row)">预览</el-button>
             <el-button size="small" @click="download(row.id)">下载</el-button>
+            <el-button size="small" :loading="parsingId === row.id" @click="parse(row)">解析</el-button>
             <el-button size="small" @click="openEdit(row)">编辑</el-button>
             <el-button size="small" type="danger" @click="remove(row.id)">删除</el-button>
           </div>
@@ -123,6 +124,7 @@ const previewUrl = ref('')
 const previewTitle = ref('PDF 预览')
 const usageResumeName = ref('')
 const selectedUsage = ref<ResumeUsage | null>(null)
+const parsingId = ref<number | null>(null)
 const form = reactive({ id: 0, fileName: '', resumeCategory: [] as string[], remark: '' })
 const uploadFile = ref<any>(null)
 const uploadCategory = ref<string[]>([])
@@ -195,6 +197,14 @@ async function save() {
   await resumeApi.update(form.id, form.resumeCategory.join('、'), form.remark)
   dialogVisible.value = false
   await load()
+}
+
+async function parse(row: Resume) {
+  parsingId.value = row.id
+  try {
+    const result = await resumeApi.parse(row.id) as any
+    ElMessage.success(result.status === 'VISION_RECOMMENDED' ? '文本提取较少，后续可启用视觉解析' : '已完成本地文本提取')
+  } finally { parsingId.value = null }
 }
 
 function splitCategories(value?: string) {

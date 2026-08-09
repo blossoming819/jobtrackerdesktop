@@ -70,6 +70,7 @@ export const resumeApi = {
   remove: (id: number) => http.delete(`/resumes/${id}`),
   downloadUrl: (id: number) => `/api/resumes/${id}/download`,
   previewUrl: (id: number) => `/api/resumes/${id}/preview`
+  ,parse: (id: number, options = { allowCloudAi: false, allowVisionFallback: false }) => http.post(`/applymate/v1/resumes/${id}/parse`, options)
 }
 
 export const reminderApi = {

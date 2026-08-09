@@ -17,6 +17,7 @@
     <el-alert title="0.1 基础编辑器" type="info" :closable="false" show-icon>
       当前先以可校验 JSON 维护档案，后续会替换成基础资料、教育经历、项目经历等分区表单。
     </el-alert>
+    <el-alert :title="serviceOnline ? '本地 JobTracker 服务已连接：Web 与桌面端共享同一份档案数据。' : '本地 JobTracker 服务未连接：请启动后端或桌面端。'" :type="serviceOnline ? 'success' : 'warning'" :closable="false" show-icon />
 
     <el-card class="profile-editor-card">
       <template #header>
@@ -41,6 +42,7 @@
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { candidateProfileApi } from '../api'
+import http from '../api/http'
 import type { CandidateProfileResponse, ProfileSnapshot } from '../types'
 
 const loading = ref(false)
@@ -48,6 +50,7 @@ const saving = ref(false)
 const contentText = ref('{}')
 const snapshots = ref<ProfileSnapshot[]>([])
 const profile = ref<CandidateProfileResponse>({ profileId: 'default', schemaVersion: '0.1', revision: 0, content: {} })
+const serviceOnline = ref(false)
 
 function renderContent(content: Record<string, unknown>) {
   contentText.value = JSON.stringify(content, null, 2)
@@ -94,6 +97,7 @@ async function restore(snapshot: ProfileSnapshot) {
 }
 
 onMounted(load)
+onMounted(async () => { try { await http.get('/applymate/v1/health'); serviceOnline.value = true } catch { serviceOnline.value = false } })
 </script>
 
 <style scoped>
