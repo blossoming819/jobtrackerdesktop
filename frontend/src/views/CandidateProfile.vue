@@ -17,7 +17,7 @@
     <el-alert title="0.1 基础编辑器" type="info" :closable="false" show-icon>
       当前先以可校验 JSON 维护档案，后续会替换成基础资料、教育经历、项目经历等分区表单。
     </el-alert>
-    <el-alert :title="serviceOnline ? '本地 JobTracker 服务已连接：Web 与桌面端共享同一份档案数据。' : '本地 JobTracker 服务未连接：请启动后端或桌面端。'" :type="serviceOnline ? 'success' : 'warning'" :closable="false" show-icon />
+    <el-alert :title="serviceOnline ? '当前后端服务已连接。Web(MySQL) 与桌面端(H2) 默认使用独立数据，扩展应连接当前服务。' : '本地 JobTracker 服务未连接：请启动后端或桌面端。'" :type="serviceOnline ? 'success' : 'warning'" :closable="false" show-icon />
 
     <el-card class="profile-editor-card">
       <template #header>
@@ -35,15 +35,26 @@
         <el-table-column label="操作" width="120"><template #default="{ row }"><el-button text type="primary" @click="restore(row)">恢复</el-button></template></el-table-column>
       </el-table>
     </el-card>
+
+    <el-card class="pairing-card">
+      <template #header><div class="card-header"><span>浏览器扩展配对</span><small>仅批准你刚刚在 Chrome 中发起的请求</small></div></template>
+      <el-empty v-if="pairingRequests.length === 0" description="没有待批准的扩展请求" :image-size="64" />
+      <el-table v-else :data="pairingRequests" size="small">
+        <el-table-column prop="displayName" label="扩展" min-width="170" />
+        <el-table-column prop="extensionId" label="Extension ID" min-width="260" show-overflow-tooltip />
+        <el-table-column prop="createdTime" label="请求时间" min-width="180" />
+        <el-table-column label="操作" width="120"><template #default="{ row }"><el-button text type="primary" :loading="approvingId === row.id" @click="approvePairing(row)">批准</el-button></template></el-table-column>
+      </el-table>
+    </el-card>
   </section>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { candidateProfileApi } from '../api'
+import { candidateProfileApi, pairingApi } from '../api'
 import http from '../api/http'
-import type { CandidateProfileResponse, ProfileSnapshot } from '../types'
+import type { CandidateProfileResponse, ExtensionPairing, ProfileSnapshot } from '../types'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -51,6 +62,8 @@ const contentText = ref('{}')
 const snapshots = ref<ProfileSnapshot[]>([])
 const profile = ref<CandidateProfileResponse>({ profileId: 'default', schemaVersion: '0.1', revision: 0, content: {} })
 const serviceOnline = ref(false)
+const pairingRequests = ref<ExtensionPairing[]>([])
+const approvingId = ref<number>()
 
 function renderContent(content: Record<string, unknown>) {
   contentText.value = JSON.stringify(content, null, 2)
@@ -62,8 +75,21 @@ async function load() {
     profile.value = await candidateProfileApi.get()
     renderContent(profile.value.content)
     snapshots.value = await candidateProfileApi.snapshots()
+    pairingRequests.value = await pairingApi.pending()
   } finally {
     loading.value = false
+  }
+}
+
+async function approvePairing(request: ExtensionPairing) {
+  await ElMessageBox.confirm(`确认批准 Chrome 扩展“${request.displayName || request.extensionId}”吗？仅应批准你本人刚发起的请求。`, '批准扩展配对', { type: 'warning' })
+  approvingId.value = request.id
+  try {
+    await pairingApi.approve(request.id)
+    pairingRequests.value = await pairingApi.pending()
+    ElMessage.success('配对已批准，请回到 Chrome 扩展完成令牌领取。')
+  } finally {
+    approvingId.value = undefined
   }
 }
 
@@ -107,7 +133,7 @@ onMounted(async () => { try { await http.get('/applymate/v1/health'); serviceOnl
 .page-heading p { margin: 0; color: var(--el-text-color-secondary); line-height: 1.7; }
 .eyebrow { color: var(--el-color-primary) !important; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .profile-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
-.profile-editor-card, .snapshot-card { border-radius: 14px; }
+.profile-editor-card, .snapshot-card, .pairing-card { border-radius: 14px; }
 .card-header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-weight: 700; }
 .card-header small { color: var(--el-text-color-secondary); font-weight: 400; }
 .profile-json :deep(textarea) { font-family: Consolas, 'Courier New', monospace; line-height: 1.55; }

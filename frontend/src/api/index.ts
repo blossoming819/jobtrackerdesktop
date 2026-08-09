@@ -1,5 +1,5 @@
 import http from './http'
-import type { CandidateProfileResponse, InterviewNote, InterviewRecord, JobApplication, NoteItem, ProfileSnapshot, Reminder } from '../types'
+import type { CandidateProfileResponse, ExtensionPairing, InterviewNote, InterviewRecord, JobApplication, NoteItem, ProfileSnapshot, Reminder } from '../types'
 
 export const statusOptions = ['收藏', '待投递', '已投递', '笔试', '面试中', '一面', '二面', '三面', '四面', '主管面', 'HR 面', 'Offer', '淘汰']
 export const typeOptions = [
@@ -92,4 +92,9 @@ export const candidateProfileApi = {
   save: (content: Record<string, unknown>) => http.put('/applymate/v1/profile', content) as Promise<CandidateProfileResponse>,
   snapshots: () => http.get('/applymate/v1/profile/snapshots') as Promise<ProfileSnapshot[]>,
   restore: (id: number) => http.put(`/applymate/v1/profile/snapshots/${id}/restore`) as Promise<CandidateProfileResponse>
+}
+
+export const pairingApi = {
+  pending: () => http.get('/applymate/v1/pairing/pending') as Promise<ExtensionPairing[]>,
+  approve: (id: number) => http.post(`/applymate/v1/pairing/${id}/approve`) as Promise<{ requestId: number, status: string }>
 }

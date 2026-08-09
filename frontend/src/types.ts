@@ -107,3 +107,11 @@ export interface ProfileSnapshot {
   revision: number
   createdAt?: string
 }
+
+export interface ExtensionPairing {
+  id: number
+  extensionId: string
+  displayName?: string
+  status: 'PENDING' | 'APPROVED' | 'CLAIMED'
+  createdTime?: string
+}
