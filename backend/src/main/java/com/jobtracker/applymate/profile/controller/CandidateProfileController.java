@@ -35,8 +35,8 @@ public class CandidateProfileController {
     }
 
     @GetMapping("/snapshots")
-    public Result<List<ProfileSnapshotResponse>> snapshots() {
-        return Result.ok(candidateProfileService.snapshots());
+    public Result<List<ProfileSnapshotResponse>> snapshots(@org.springframework.web.bind.annotation.RequestParam(defaultValue = "5") int limit) {
+        return Result.ok(candidateProfileService.snapshots(limit));
     }
 
     @PutMapping("/diff")

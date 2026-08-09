@@ -90,7 +90,7 @@ export const storageApi = {
 export const candidateProfileApi = {
   get: () => http.get('/applymate/v1/profile') as Promise<CandidateProfileResponse>,
   save: (content: Record<string, unknown>) => http.put('/applymate/v1/profile', content) as Promise<CandidateProfileResponse>,
-  snapshots: () => http.get('/applymate/v1/profile/snapshots') as Promise<ProfileSnapshot[]>,
+  snapshots: (limit = 5) => http.get('/applymate/v1/profile/snapshots', { params: { limit } }) as Promise<ProfileSnapshot[]>,
   restore: (id: number) => http.put(`/applymate/v1/profile/snapshots/${id}/restore`) as Promise<CandidateProfileResponse>
 }
 

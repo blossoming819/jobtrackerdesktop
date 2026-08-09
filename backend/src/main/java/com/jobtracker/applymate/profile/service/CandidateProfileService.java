@@ -11,7 +11,7 @@ public interface CandidateProfileService {
 
     CandidateProfileResponse save(JsonNode content);
 
-    List<ProfileSnapshotResponse> snapshots();
+    List<ProfileSnapshotResponse> snapshots(int limit);
 
     CandidateProfileResponse restore(Long snapshotId);
 }

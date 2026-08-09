@@ -63,11 +63,12 @@ public class CandidateProfileServiceImpl implements CandidateProfileService {
     }
 
     @Override
-    public List<ProfileSnapshotResponse> snapshots() {
+    public List<ProfileSnapshotResponse> snapshots(int limit) {
         return profileSnapshotMapper.selectList(new LambdaQueryWrapper<ProfileSnapshot>()
                         .eq(ProfileSnapshot::getProfileId, DEFAULT_PROFILE_ID)
                         .orderByDesc(ProfileSnapshot::getRevision))
                 .stream()
+                .limit(Math.max(1, Math.min(limit, 50)))
                 .map(snapshot -> new ProfileSnapshotResponse(snapshot.getId(), snapshot.getRevision(), snapshot.getCreatedTime()))
                 .toList();
     }
