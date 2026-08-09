@@ -17,7 +17,7 @@
     <el-alert title="0.1 基础编辑器" type="info" :closable="false" show-icon>
       当前先以可校验 JSON 维护档案，后续会替换成基础资料、教育经历、项目经历等分区表单。
     </el-alert>
-    <el-alert :title="serviceOnline ? '当前后端服务已连接。Web(MySQL) 与桌面端(H2) 默认使用独立数据，扩展应连接当前服务。' : '本地 JobTracker 服务未连接：请启动后端或桌面端。'" :type="serviceOnline ? 'success' : 'warning'" :closable="false" show-icon />
+    <el-alert :title="serviceOnline ? `当前已连接：${runtimeLabel}。档案、快照与扩展配对均保存在该端；Web(MySQL) 与桌面端(H2) 默认不同步。` : '本地 JobTracker 服务未连接：请启动后端或桌面端。'" :type="serviceOnline ? 'success' : 'warning'" :closable="false" show-icon />
 
     <el-card class="profile-editor-card">
       <template #header>
@@ -62,6 +62,7 @@ const contentText = ref('{}')
 const snapshots = ref<ProfileSnapshot[]>([])
 const profile = ref<CandidateProfileResponse>({ profileId: 'default', schemaVersion: '0.1', revision: 0, content: {} })
 const serviceOnline = ref(false)
+const runtimeLabel = ref('正在识别服务类型')
 const pairingRequests = ref<ExtensionPairing[]>([])
 const approvingId = ref<number>()
 
@@ -123,7 +124,13 @@ async function restore(snapshot: ProfileSnapshot) {
 }
 
 onMounted(load)
-onMounted(async () => { try { await http.get('/applymate/v1/health'); serviceOnline.value = true } catch { serviceOnline.value = false } })
+onMounted(async () => {
+  try {
+    const health = await http.get('/applymate/v1/health') as { runtime?: string, dataStore?: string }
+    runtimeLabel.value = health.runtime === 'DESKTOP' ? '桌面端（H2）' : health.runtime === 'WEB' ? 'Web 端（MySQL）' : `未知服务（${health.dataStore || '未识别数据库'}）`
+    serviceOnline.value = true
+  } catch { serviceOnline.value = false }
+})
 </script>
 
 <style scoped>
