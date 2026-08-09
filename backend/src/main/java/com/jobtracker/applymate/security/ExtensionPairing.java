@@ -9,6 +9,6 @@ import java.time.LocalDateTime;
 @Data @TableName("applymate_extension_pairing")
 public class ExtensionPairing {
   @TableId(type = IdType.AUTO) private Long id;
-  private String extensionId; private String displayName; private String tokenHash; private String status;
+  private String extensionId; private String displayName; private String claimSecretHash; private String tokenHash; private String status;
   private LocalDateTime createdTime; private LocalDateTime approvedTime;
 }
