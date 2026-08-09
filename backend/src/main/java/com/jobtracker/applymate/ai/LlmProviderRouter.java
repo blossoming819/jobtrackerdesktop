@@ -6,6 +6,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -15,9 +16,13 @@ public class LlmProviderRouter {
     private final Map<String, FailureState> failures = new ConcurrentHashMap<>();
 
     public SelectedProvider select(String task, boolean requiresVision) {
+        return select(task, requiresVision, Set.of());
+    }
+    public SelectedProvider select(String task, boolean requiresVision, Set<String> excluded) {
         LlmProperties.Route route = properties.getRoutes().get(task);
         if (route == null || route.getCandidates().isEmpty()) throw new IllegalArgumentException("AI_ROUTE_NOT_CONFIGURED: " + task);
         for (String id : route.getCandidates()) {
+            if (excluded.contains(id)) continue;
             LlmProperties.Provider provider = properties.getProviders().get(id);
             if (available(id, provider, requiresVision)) return new SelectedProvider(id, provider.getBaseUrl(), provider.getModel());
         }

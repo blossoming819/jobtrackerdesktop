@@ -1,7 +1,8 @@
 package com.jobtracker.applymate.resumeparse.service;
 
+import com.jobtracker.applymate.resumeparse.dto.ResumeParseRequest;
 import com.jobtracker.applymate.resumeparse.dto.ResumeParseResponse;
 
 public interface ResumeParseService {
-    ResumeParseResponse extract(Long resumeId);
+    ResumeParseResponse extract(Long resumeId, ResumeParseRequest request);
 }
