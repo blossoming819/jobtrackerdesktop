@@ -22,7 +22,11 @@ public class ProfileValueController {
     JsonNode n=root;
     String[] parts=key.split("\\.");
     for(String part:parts){
-      if(n != null && n.isArray()) n = n.isEmpty() ? null : n.get(0);
+      if(n != null && n.isArray()) {
+        int index = part.matches("\\d+") ? Integer.parseInt(part) : 0;
+        n = n.size() > index ? n.get(index) : null;
+        if (part.matches("\\d+")) continue;
+      }
       n=n==null?null:n.get(part);
     }
     return n;
