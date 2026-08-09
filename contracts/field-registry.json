@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "0.1",
+  "fields": [
+    {
+      "key": "basic.nameCn",
+      "displayName": "中文姓名",
+      "valueType": "TEXT",
+      "aliases": ["姓名", "中文姓名", "姓名（中文）", "name"],
+      "sensitivity": "PERSONAL",
+      "autofillPolicy": "ALLOW"
+    },
+    {
+      "key": "contact.phone",
+      "displayName": "手机号码",
+      "valueType": "TEXT",
+      "aliases": ["手机", "手机号", "联系电话", "mobile phone"],
+      "sensitivity": "PERSONAL",
+      "autofillPolicy": "CONFIRM"
+    },
+    {
+      "key": "education.school",
+      "displayName": "学校",
+      "valueType": "TEXT",
+      "aliases": ["学校", "毕业院校", "本科院校", "硕士院校", "school", "university"],
+      "recordSelectorHints": ["本科", "硕士", "博士", "最高学历"],
+      "sensitivity": "NORMAL",
+      "autofillPolicy": "ALLOW"
+    },
+    {
+      "key": "education.degree",
+      "displayName": "学历",
+      "valueType": "ENUM",
+      "aliases": ["学历", "最高学历", "教育程度", "最高教育程度", "degree", "education level"],
+      "optionMappings": {
+        "BACHELOR": ["本科", "学士", "Bachelor"],
+        "MASTER": ["硕士", "硕士研究生", "Master"],
+        "DOCTOR": ["博士", "博士研究生", "Doctor", "PhD"]
+      },
+      "sensitivity": "NORMAL",
+      "autofillPolicy": "ALLOW"
+    },
+    {
+      "key": "customInfo.identityCardNumber",
+      "displayName": "身份证号",
+      "valueType": "TEXT",
+      "aliases": ["身份证号", "身份证号码", "证件号码"],
+      "sensitivity": "SENSITIVE",
+      "autofillPolicy": "DENY"
+    }
+  ]
+}

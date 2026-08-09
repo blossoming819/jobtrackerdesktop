@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://applymate.local/contracts/candidate-profile.schema.json",
+  "title": "ApplyMate Candidate Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "profileId", "basic", "contact", "education", "fieldMeta"],
+  "properties": {
+    "schemaVersion": { "const": "0.1" },
+    "profileId": { "type": "string", "minLength": 1 },
+    "basic": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nameCn": { "type": "string" },
+        "nameEn": { "type": "string" },
+        "gender": { "enum": ["MALE", "FEMALE", "UNSPECIFIED"] },
+        "birthDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+      }
+    },
+    "contact": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "phone": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "wechat": { "type": "string" },
+        "currentCity": { "type": "string" }
+      }
+    },
+    "identity": { "type": "object", "description": "Sensitive fields are stored separately and excluded from default extension responses." },
+    "education": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/educationEntry" }
+    },
+    "work": { "type": "array", "items": { "type": "object" } },
+    "projects": { "type": "array", "items": { "type": "object" } },
+    "skills": { "type": "array", "items": { "type": "object" } },
+    "jobPreferences": { "type": "object" },
+    "customInfo": { "type": "object" },
+    "fieldMeta": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/fieldMeta" }
+    }
+  },
+  "$defs": {
+    "educationEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "school"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "school": { "type": "string" },
+        "college": { "type": "string" },
+        "major": { "type": "string" },
+        "degree": { "enum": ["BACHELOR", "MASTER", "DOCTOR", "OTHER"] },
+        "startDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}$" },
+        "endDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}$" },
+        "expectedGraduation": { "type": "string", "pattern": "^\\d{4}-\\d{2}$" }
+      }
+    },
+    "fieldMeta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "confirmationState", "sensitivity"],
+      "properties": {
+        "source": { "enum": ["RESUME", "MANUAL", "FORM_HISTORY", "AI_SUGGESTED"] },
+        "confirmationState": { "enum": ["CONFIRMED", "UNCONFIRMED", "CONFLICT"] },
+        "sensitivity": { "enum": ["NORMAL", "PERSONAL", "SENSITIVE", "HIGHLY_SENSITIVE"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

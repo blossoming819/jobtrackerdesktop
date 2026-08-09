@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "0.1",
+  "profileId": "profile_demo_001",
+  "basic": {
+    "nameCn": "示例同学",
+    "gender": "UNSPECIFIED"
+  },
+  "contact": {
+    "email": "demo@example.com",
+    "currentCity": "上海"
+  },
+  "education": [
+    {
+      "id": "edu_bachelor_001",
+      "school": "示例大学",
+      "major": "计算机科学与技术",
+      "degree": "BACHELOR",
+      "startDate": "2023-09",
+      "expectedGraduation": "2027-06"
+    }
+  ],
+  "work": [],
+  "projects": [],
+  "skills": [],
+  "jobPreferences": {},
+  "customInfo": {},
+  "fieldMeta": {
+    "basic.nameCn": {
+      "source": "MANUAL",
+      "confirmationState": "CONFIRMED",
+      "sensitivity": "PERSONAL",
+      "updatedAt": "2026-08-09T09:00:00+08:00"
+    },
+    "education.edu_bachelor_001.school": {
+      "source": "RESUME",
+      "confirmationState": "CONFIRMED",
+      "sensitivity": "NORMAL",
+      "updatedAt": "2026-08-09T09:00:00+08:00"
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://applymate.local/contracts/llm-provider-config.schema.json",
+  "title": "ApplyMate LLM Provider Configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["providerId", "displayName", "model", "capabilities"],
+  "properties": {
+    "providerId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,31}$",
+      "description": "Examples: openai, qwen, deepseek, mock"
+    },
+    "displayName": { "type": "string", "minLength": 1 },
+    "baseUrl": { "type": "string", "format": "uri" },
+    "model": { "type": "string", "minLength": 1 },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["structuredOutput", "visionInput", "jsonSchema", "streaming"],
+      "properties": {
+        "structuredOutput": { "type": "boolean" },
+        "visionInput": { "type": "boolean" },
+        "jsonSchema": { "type": "boolean" },
+        "streaming": { "type": "boolean" }
+      }
+    },
+    "enabled": { "type": "boolean", "default": false }
+  },
+  "description": "Secrets are deliberately excluded. API keys are stored only in local secret storage."
+}
