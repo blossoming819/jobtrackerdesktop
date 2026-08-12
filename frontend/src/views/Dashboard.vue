@@ -38,10 +38,10 @@
   </div>
   <div class="panel">
     <div class="section-heading">
-      <h3>最近投递记录</h3>
-      <span>按投递时间倒序排列；未填写投递时间时，用最近更新时间兜底。</span>
+      <div><h3>最近投递记录</h3><span>展示最近五条；按投递时间倒序排列，未填写时用最近更新时间兜底。</span></div>
+      <el-button text @click="recentExpanded = !recentExpanded">{{ recentExpanded ? '收起' : '展开' }}</el-button>
     </div>
-    <el-table :data="data.recentApplications || []">
+    <el-table v-show="recentExpanded" :data="(data.recentApplications || []).slice(0, 5)">
       <el-table-column prop="companyName" label="公司" min-width="130" show-overflow-tooltip />
       <el-table-column prop="positionName" label="岗位" min-width="170" show-overflow-tooltip />
       <el-table-column prop="positionType" label="岗位类别" min-width="170">
@@ -94,6 +94,7 @@ const pieRef = ref<HTMLDivElement>()
 const lineRef = ref<HTMLDivElement>()
 const barRef = ref<HTMLDivElement>()
 const data = ref<any>({})
+const recentExpanded = ref(true)
 const chartInstances: echarts.ECharts[] = []
 let chartResizeObserver: ResizeObserver | undefined
 let chartResizeFrame: number | undefined

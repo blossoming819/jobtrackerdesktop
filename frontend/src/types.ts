@@ -17,6 +17,7 @@ export interface JobApplication {
   progressOperatedTime?: string
   appliedTime?: string
   resumeId?: number
+  profileId?: string
   remark?: string
 }
 
@@ -96,16 +97,42 @@ export interface NoteItem {
 
 export interface CandidateProfileResponse {
   profileId: string
+  name?: string
+  description?: string
+  sourceResumeId?: number
+  defaultProfile?: boolean
   schemaVersion: string
   revision: number
   content: Record<string, unknown>
   updatedAt?: string
 }
 
+export interface CandidateProfileSummary {
+  profileId: string
+  name: string
+  description?: string
+  sourceResumeId?: number
+  defaultProfile: boolean
+  revision: number
+  updatedAt?: string
+}
+
 export interface ProfileSnapshot {
   id: number
   revision: number
+  description?: string
   createdAt?: string
+}
+
+export interface ResumeParseHistory {
+  parseRecordId: number
+  resumeId: number
+  status: string
+  extractedLength: number
+  extractor?: string
+  errorCode?: string
+  createdAt?: string
+  draft?: Record<string, unknown> | string
 }
 
 export interface ExtensionPairing {
@@ -114,4 +141,5 @@ export interface ExtensionPairing {
   displayName?: string
   status: 'PENDING' | 'APPROVED' | 'CLAIMED' | 'REVOKED'
   createdTime?: string
+  approvedTime?: string
 }

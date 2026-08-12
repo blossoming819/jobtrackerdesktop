@@ -30,11 +30,23 @@
       "key": "education.degree",
       "displayName": "学历",
       "valueType": "ENUM",
-      "aliases": ["学历", "最高学历", "教育程度", "最高教育程度", "degree", "education level"],
+      "aliases": ["学历", "最高学历", "学历层次", "教育程度", "最高教育程度", "degree", "education level"],
       "optionMappings": {
         "BACHELOR": ["本科", "学士", "Bachelor"],
         "MASTER": ["硕士", "硕士研究生", "Master"],
         "DOCTOR": ["博士", "博士研究生", "Doctor", "PhD"]
+      },
+      "sensitivity": "NORMAL",
+      "autofillPolicy": "ALLOW"
+    },
+    {
+      "key": "education.studyMode",
+      "displayName": "学历类型",
+      "valueType": "ENUM",
+      "aliases": ["学历类型", "学历形式", "学习形式", "培养方式", "是否全日制", "study mode", "education type"],
+      "optionMappings": {
+        "FULL_TIME": ["全日制", "统招全日制", "统招", "Full-time"],
+        "PART_TIME": ["非全日制", "在职", "成人教育", "自考", "Part-time"]
       },
       "sensitivity": "NORMAL",
       "autofillPolicy": "ALLOW"

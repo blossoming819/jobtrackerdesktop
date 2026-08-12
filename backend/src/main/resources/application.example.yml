@@ -31,35 +31,57 @@ job-tracker:
 
 applymate:
   llm:
-    # YAML selects providers/models and routing only. Never place a raw API key here.
+    # 模型地址、模型名、开关和路由都可以写在 YAML；密钥只从环境变量读取，避免提交到仓库。
+    # ${ENV_NAME:default} 表示：优先读取环境变量，未设置时使用冒号后的默认值。
     circuit-breaker:
       failure-threshold: 3
       open-duration-seconds: 60
     providers:
       qwen:
-        enabled: true
-        base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+        enabled: ${APPLYMATE_QWEN_ENABLED:true}
+        # OpenAI 兼容 API 根地址；程序会在后面追加 /chat/completions。
+        base-url: ${APPLYMATE_QWEN_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
         api-key: ${APPLYMATE_QWEN_API_KEY:}
-        model: qwen-plus
+        # 服务端实际识别的模型 ID。页面映射与文本简历解析均不需要开启思考模式。
+        model: ${APPLYMATE_QWEN_MODEL:qwen-plus}
         capabilities:
           structured-output: true
           vision-input: false
           json-schema: false
           streaming: true
       deepseek:
-        enabled: true
-        base-url: https://api.deepseek.com
+        enabled: ${APPLYMATE_DEEPSEEK_ENABLED:true}
+        base-url: ${APPLYMATE_DEEPSEEK_BASE_URL:https://api.deepseek.com}
         api-key: ${APPLYMATE_DEEPSEEK_API_KEY:}
-        model: deepseek-v4-flash
+        model: ${APPLYMATE_DEEPSEEK_MODEL:deepseek-v4-flash}
         capabilities:
           structured-output: true
           vision-input: false
           json-schema: false
           streaming: true
+      local:
+        enabled: ${APPLYMATE_LOCAL_LLM_ENABLED:false}
+        # Ollama 的 OpenAI 兼容地址。LM Studio 等服务可通过环境变量替换。
+        base-url: ${APPLYMATE_LOCAL_LLM_BASE_URL:http://127.0.0.1:11434/v1}
+        # Ollama 要求请求中存在 API key 字段但会忽略其值，因此默认使用占位值 local。
+        api-key: ${APPLYMATE_LOCAL_LLM_API_KEY:local}
+        model: ${APPLYMATE_LOCAL_LLM_MODEL:qwen3:8b}
+        capabilities:
+          structured-output: true
+          vision-input: false
+          json-schema: false
+          streaming: false
     routes:
+      # candidates 是故障转移优先级，不是并行调用，也不会自动按价格选择。
+      # 要求：文本理解、中文信息抽取、稳定 JSON 输出；建议上下文至少 32K。
       resume-parse:
-        candidates: [qwen, deepseek]
+        candidates: [deepseek, qwen, local]
+        # 大型简历可通过环境变量继续放宽；这是输出预算，不是输入长度或请求超时。
+        max-output-tokens: ${APPLYMATE_LLM_RESUME_PARSE_MAX_OUTPUT_TOKENS:8192}
+      # 要求：标签/分组语义理解、稳定 JSON 输出；8K 上下文通常足够，优先低延迟非思考模型。
       low-confidence-field-match:
-        candidates: [qwen, deepseek]
+        candidates: [deepseek, qwen, local]
+        max-output-tokens: ${APPLYMATE_LLM_FIELD_MAPPING_MAX_OUTPUT_TOKENS:2048}
+      # 预留路由：还需要实现图片消息传输；仅配置视觉模型不会自动启用视觉简历解析。
       resume-vision:
-        candidates: [] # Configure only providers with vision-input: true.
+        candidates: []

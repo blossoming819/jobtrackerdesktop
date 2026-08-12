@@ -27,6 +27,13 @@
       <div class="summary-label">简历类别</div>
       <div class="summary-value summary-value-last">{{ application.resumeCategory || '-' }}</div>
 
+      <div class="summary-label">关联档案</div>
+      <div class="summary-value">
+        <div class="bound-resume-info">
+          <span class="bound-resume-name" :title="boundProfileName">{{ boundProfileName }}</span>
+          <el-button v-if="application.profileId" class="bound-resume-preview" size="small" link type="primary" @click="previewProfile">预览</el-button>
+        </div>
+      </div>
       <div class="summary-label">投递简历名称</div>
       <div class="summary-value">
         <span class="application-resume-alias" :title="application.resumeAlias || detail.resume?.fileName || '未设置'">
@@ -34,7 +41,7 @@
         </span>
       </div>
       <div class="summary-label">绑定简历</div>
-      <div class="summary-value">
+      <div class="summary-value summary-value-last">
         <div class="bound-resume-info">
           <span class="bound-resume-name" :title="detail.resume?.fileName || '未绑定'">
             {{ detail.resume?.fileName || '未绑定' }}
@@ -62,14 +69,14 @@
         </div>
       </div>
       <div class="summary-label">地点</div>
-      <div class="summary-value summary-value-last">{{ application.workLocation || '-' }}</div>
+      <div class="summary-value">{{ application.workLocation || '-' }}</div>
 
       <div class="summary-label">来源</div>
       <div class="summary-value">{{ application.source || '-' }}</div>
       <div class="summary-label">薪资</div>
-      <div class="summary-value">{{ application.salary || '-' }}</div>
+      <div class="summary-value summary-value-last">{{ application.salary || '-' }}</div>
       <div class="summary-label">投递时间</div>
-      <div class="summary-value summary-value-last">{{ formatDate(application.appliedTime) || '-' }}</div>
+      <div class="summary-value summary-value-wide">{{ formatDate(application.appliedTime) || '-' }}</div>
 
       <div class="summary-label">链接</div>
       <div class="summary-value summary-value-wide">
@@ -326,6 +333,38 @@
   <el-dialog v-model="resumePreviewVisible" :title="detail.resume?.fileName || 'PDF 预览'" width="86%" top="4vh" destroy-on-close>
     <iframe v-if="resumePreviewUrl" class="pdf-preview" :src="resumePreviewUrl"></iframe>
   </el-dialog>
+
+  <el-dialog v-model="profilePreviewVisible" :title="`档案预览 · ${profilePreview?.name || boundProfileName}`" width="min(900px, 92vw)" top="5vh" class="profile-preview-dialog" destroy-on-close>
+    <el-scrollbar max-height="72vh">
+      <p v-if="profilePreview?.description" class="profile-preview-description">{{ profilePreview.description }}</p>
+      <el-descriptions :column="3" border>
+        <el-descriptions-item label="姓名">{{ profileContent.basic?.nameCn || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="英文姓名">{{ profileContent.basic?.nameEn || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="性别">{{ displayGender(profileContent.basic?.gender) }}</el-descriptions-item>
+        <el-descriptions-item label="出生日期">{{ profileContent.basic?.birthDate || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="当前城市">{{ profileContent.contact?.currentCity || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="邮箱">{{ profileContent.contact?.email || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="手机号">{{ profileContent.contact?.phone || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="微信">{{ profileContent.contact?.wechat || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="修订版本">v{{ profilePreview?.revision || 0 }}</el-descriptions-item>
+      </el-descriptions>
+      <section v-for="section in profilePreviewSections" :key="section.key" class="profile-preview-section">
+        <h3>{{ section.label }}（{{ section.items.length }}）</h3>
+        <el-empty v-if="!section.items.length" description="暂无内容" :image-size="42" />
+        <div v-else class="profile-preview-items">
+          <article v-for="(item, index) in section.items" :key="index" class="profile-preview-item">
+            <strong>{{ previewItemTitle(section.key, item, index) }}</strong>
+            <div class="profile-preview-field-grid">
+              <div v-for="field in previewItemFields(section.key, item)" :key="field.label" :class="{ wide: field.wide }">
+                <span>{{ field.label }}</span><p>{{ field.value || '未填写' }}</p>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </el-scrollbar>
+    <template #footer><el-button @click="profilePreviewVisible = false">关闭</el-button></template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -334,8 +373,8 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ChatDotRound, Collection, EditPen, Files, Medal, Promotion, Star, User, Warning } from '@element-plus/icons-vue'
-import { applicationApi, interviewApi, noteApi, resumeApi } from '../api'
-import type { InterviewNote, InterviewRecord, JobApplication, Reminder } from '../types'
+import { applicationApi, candidateProfileApi, interviewApi, noteApi, resumeApi } from '../api'
+import type { CandidateProfileResponse, CandidateProfileSummary, InterviewNote, InterviewRecord, JobApplication, Reminder } from '../types'
 import { formatDateTime } from '../utils/time'
 
 type ProgressStep = { name: string; description: string; result?: string; operatedTime?: string }
@@ -346,6 +385,21 @@ const jobId = Number(route.params.id)
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 const detail = ref<any>({ application: {}, resume: null, interviewRecords: [], interviewNotes: [] })
 const application = computed<JobApplication>(() => detail.value.application || {})
+const profileVersions = ref<CandidateProfileSummary[]>([])
+const profilePreviewVisible = ref(false)
+const profilePreview = ref<CandidateProfileResponse | null>(null)
+const profileContent = computed<any>(() => profilePreview.value?.content || {})
+const profilePreviewSections = computed(() => [
+  { key: 'education', label: '教育经历', items: profileContent.value.education || [] },
+  { key: 'work', label: '实习 / 工作经历', items: profileContent.value.work || [] },
+  { key: 'projects', label: '项目经历', items: profileContent.value.projects || [] },
+  { key: 'honors', label: '荣誉与奖项', items: profileContent.value.honors || [] },
+])
+const boundProfileName = computed(() => {
+  if (!application.value.profileId) return '未关联'
+  const profile = profileVersions.value.find(item => item.profileId === application.value.profileId)
+  return profile ? (profile.defaultProfile ? `${profile.name}（默认）` : profile.name) : '档案版本已不存在'
+})
 const sectionOpen = reactive({
   progress: true,
   jd: false,
@@ -472,7 +526,37 @@ watch(progressText, () => {
 })
 
 async function load() {
-  detail.value = await applicationApi.detail(jobId)
+  const [applicationDetail, versions] = await Promise.all([applicationApi.detail(jobId), candidateProfileApi.versions()])
+  detail.value = applicationDetail
+  profileVersions.value = versions
+}
+
+async function previewProfile() {
+  if (!application.value.profileId) return
+  profilePreview.value = await candidateProfileApi.version(application.value.profileId)
+  profilePreviewVisible.value = true
+}
+
+function displayGender(value?: string) {
+  return ({ MALE: '男', FEMALE: '女', UNSPECIFIED: '未填写' } as Record<string, string>)[value || ''] || value || '-'
+}
+
+function previewItemTitle(section: string, item: any, index: number) {
+  if (section === 'education') return item.school || `教育经历 ${index + 1}`
+  if (section === 'work') return item.company || `工作经历 ${index + 1}`
+  if (section === 'projects') return item.name || `项目经历 ${index + 1}`
+  return item.name || `荣誉奖项 ${index + 1}`
+}
+
+function previewItemFields(section: string, item: any) {
+  const configs: Record<string, Array<[string, string, boolean?]>> = {
+    education: [['学校', 'school'], ['学历', 'degree'], ['专业', 'major'], ['学院', 'college'], ['入学时间', 'startDate'], ['毕业时间', 'expectedGraduation'], ['学历形式', 'studyMode'], ['GPA / 排名', 'gpa']],
+    work: [['公司', 'company'], ['岗位', 'role'], ['部门', 'department'], ['城市', 'city'], ['开始时间', 'startDate'], ['结束时间', 'endDate'], ['工作类型', 'employmentType'], ['行业', 'industry'], ['工作职责', 'responsibilities', true], ['成果与量化', 'achievements', true], ['技术 / 工具', 'technologies', true]],
+    projects: [['项目名称', 'name'], ['角色', 'role'], ['开始时间', 'startDate'], ['结束时间', 'endDate'], ['项目类型', 'type'], ['团队规模', 'teamSize'], ['项目链接', 'url'], ['技术栈', 'technologies'], ['项目简介', 'description', true], ['个人贡献', 'contributions', true]],
+    honors: [['奖项名称', 'name'], ['奖项等级', 'level'], ['获奖日期', 'date'], ['奖项类型', 'category'], ['奖项描述', 'description', true]],
+  }
+  const enums: Record<string, string> = { BACHELOR: '学士', MASTER: '硕士', DOCTOR: '博士', FULL_TIME: '全日制', PART_TIME: '非全日制', INTERNSHIP: '实习', COMPETITION: '竞赛获奖', HONOR: '荣誉称号', SCHOLARSHIP: '奖学金', CERTIFICATE: '证书' }
+  return (configs[section] || []).map(([label, key, wide]) => ({ label, value: enums[item[key]] || item[key] || '', wide: Boolean(wide) }))
 }
 
 function syncProgressForm(statusName = application.value.currentStatus) {

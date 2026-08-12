@@ -1,5 +1,5 @@
 import http from './http'
-import type { CandidateProfileResponse, ExtensionPairing, InterviewNote, InterviewRecord, JobApplication, NoteItem, ProfileSnapshot, Reminder } from '../types'
+import type { CandidateProfileResponse, CandidateProfileSummary, ExtensionPairing, InterviewNote, InterviewRecord, JobApplication, NoteItem, ProfileSnapshot, Reminder, ResumeParseHistory } from '../types'
 
 export const statusOptions = ['收藏', '待投递', '已投递', '笔试', '面试中', '一面', '二面', '三面', '四面', '主管面', 'HR 面', 'Offer', '淘汰']
 export const typeOptions = [
@@ -69,8 +69,9 @@ export const resumeApi = {
   update: (id: number, resumeCategory: string, remark?: string) => http.put(`/resumes/${id}`, null, { params: { resumeCategory, remark } }),
   remove: (id: number) => http.delete(`/resumes/${id}`),
   downloadUrl: (id: number) => `/api/resumes/${id}/download`,
-  previewUrl: (id: number) => `/api/resumes/${id}/preview`
-  ,parse: (id: number, options = { allowCloudAi: false, allowVisionFallback: false }) => http.post(`/applymate/v1/resumes/${id}/parse`, options)
+  previewUrl: (id: number) => `/api/resumes/${id}/preview`,
+  parse: (id: number, options = { allowCloudAi: false, allowVisionFallback: false }) => http.post(`/applymate/v1/resumes/${id}/parse`, options),
+  parseRecords: (id: number, limit = 10) => http.get(`/applymate/v1/resumes/${id}/parse-records`, { params: { limit } }) as Promise<ResumeParseHistory[]>
 }
 
 export const reminderApi = {
@@ -90,8 +91,20 @@ export const storageApi = {
 export const candidateProfileApi = {
   get: () => http.get('/applymate/v1/profile') as Promise<CandidateProfileResponse>,
   save: (content: Record<string, unknown>) => http.put('/applymate/v1/profile', content) as Promise<CandidateProfileResponse>,
+  versions: () => http.get('/applymate/v1/profile/versions') as Promise<CandidateProfileSummary[]>,
+  version: (profileId: string) => http.get(`/applymate/v1/profile/versions/${profileId}`) as Promise<CandidateProfileResponse>,
+  createVersion: (data: { name: string, description?: string, sourceResumeId?: number, copyFromProfileId?: string, content?: Record<string, unknown> }) => http.post('/applymate/v1/profile/versions', data) as Promise<CandidateProfileResponse>,
+  updateVersion: (profileId: string, data: { name: string, description?: string, sourceResumeId?: number }) => http.patch(`/applymate/v1/profile/versions/${profileId}`, data) as Promise<CandidateProfileResponse>,
+  deleteVersion: (profileId: string) => http.delete(`/applymate/v1/profile/versions/${profileId}`) as Promise<void>,
+  saveVersion: (profileId: string, content: Record<string, unknown>) => http.put(`/applymate/v1/profile/versions/${profileId}`, content) as Promise<CandidateProfileResponse>,
+  versionSnapshots: (profileId: string, limit = 5) => http.get(`/applymate/v1/profile/versions/${profileId}/snapshots`, { params: { limit } }) as Promise<ProfileSnapshot[]>,
+  restoreVersion: (profileId: string, id: number) => http.put(`/applymate/v1/profile/versions/${profileId}/snapshots/${id}/restore`) as Promise<CandidateProfileResponse>,
   snapshots: (limit = 5) => http.get('/applymate/v1/profile/snapshots', { params: { limit } }) as Promise<ProfileSnapshot[]>,
   restore: (id: number) => http.put(`/applymate/v1/profile/snapshots/${id}/restore`) as Promise<CandidateProfileResponse>
+}
+
+export const aiApi = {
+  providers: () => http.get('/applymate/v1/ai/providers') as Promise<Record<string, { enabled: boolean, model: string, credentialConfigured: boolean, capabilities?: Record<string, boolean> }>>
 }
 
 export const pairingApi = {

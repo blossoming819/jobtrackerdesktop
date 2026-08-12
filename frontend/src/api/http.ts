@@ -16,7 +16,10 @@ http.interceptors.response.use(
     return response
   },
   error => {
-    ElMessage.error(error.message || '网络异常')
+    const message = error.code === 'ECONNABORTED'
+      ? '请求等待时间过长，已停止等待。模型服务可能繁忙，请稍后重试。'
+      : error.message || '网络异常'
+    ElMessage.error(message)
     return Promise.reject(error)
   }
 )

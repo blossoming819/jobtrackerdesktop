@@ -15,5 +15,6 @@ public class ProfileSnapshot {
     private String profileId;
     private Integer revision;
     private String contentJson;
+    private String profileDescription;
     private LocalDateTime createdTime;
 }

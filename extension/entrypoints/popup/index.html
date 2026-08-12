@@ -8,7 +8,7 @@
   <body>
     <main class="app-shell">
       <header class="app-header">
-        <div class="brand-mark" aria-hidden="true">A</div>
+        <img class="brand-mark" src="/icons/applymate-mark-128.png" alt="ApplyMate" width="44" height="44" />
         <div><p class="eyebrow">JOBTRACKER · APPLYMATE</p><h1>智能填写助手</h1></div>
         <span class="version">0.1</span>
       </header>
@@ -18,6 +18,10 @@
         <p id="status">正在检查本地服务…</p>
         <label class="field-label" for="service">服务来源</label>
         <select id="service"><option value="auto">自动选择（推荐）</option><option value="web">Web 后端 · 8080</option><option value="desktop">桌面端服务 · 18080</option></select>
+        <label class="field-label profile-label" for="profile-version">个人档案版本</label>
+        <select id="profile-version" disabled><option value="">请先完成配对</option></select>
+        <label class="field-label profile-label" for="ai-provider">AI 模型服务</label>
+        <select id="ai-provider" disabled><option value="">自动选择（按 YAML 路由）</option></select>
       </section>
 
       <section class="workflow-card">
@@ -28,12 +32,14 @@
 
       <section class="workflow-card">
         <div class="section-heading"><div><p class="eyebrow">FILL PLAN</p><h2>扫描与填写</h2></div><span class="step-pill">需确认</span></div>
-        <p class="helper">扫描只读取表单结构；填写前会显示计划，绝不自动提交表单或处理密码、验证码。</p>
-        <button id="scan" class="button full secondary">扫描并生成填写计划</button>
+        <p class="helper">扫描通常需要几秒钟。期间会依次读取控件、理解字段并生成计划；切换到其他应用也会在后台继续，重新打开扩展即可查看进度。</p>
+        <button id="scan" class="button full secondary">AI 解析页面并生成填写计划</button>
+        <button id="stop-task" class="button full danger" hidden>停止当前任务</button>
         <button id="fill" class="button full primary" disabled>确认填写</button>
+        <div id="task-progress" class="task-progress" hidden><span class="spinner" aria-hidden="true"></span><span id="task-progress-text">正在准备…</span></div>
       </section>
 
-      <details class="result-card"><summary>查看扫描与填写结果</summary><pre id="result">尚未执行操作</pre></details>
+      <details class="result-card"><summary><span>查看扫描与填写结果</span><button id="copy-result" class="copy-button" type="button">复制</button></summary><pre id="result">尚未执行操作</pre></details>
       <footer><span class="shield">◆</span> 只在你确认后填写；请在目标网页中复核信息。</footer>
     </main>
     <script type="module" src="./main.ts"></script>

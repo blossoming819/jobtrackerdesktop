@@ -34,3 +34,41 @@ job-tracker:
     note-dir: ${JOB_TRACKER_DATA_DIR:./desktop-data}/interview_notes
     general-note-dir: ${JOB_TRACKER_DATA_DIR:./desktop-data}/notes
 
+applymate:
+  llm:
+    # ${ENV_NAME:default} 优先读取环境变量；API Key 不应直接写进 YAML。
+    providers:
+      qwen:
+        enabled: ${APPLYMATE_QWEN_ENABLED:false}
+        base-url: ${APPLYMATE_QWEN_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+        api-key: ${APPLYMATE_QWEN_API_KEY:}
+        model: ${APPLYMATE_QWEN_MODEL:qwen-plus}
+        capabilities:
+          structured-output: true
+      deepseek:
+        enabled: ${APPLYMATE_DEEPSEEK_ENABLED:false}
+        base-url: ${APPLYMATE_DEEPSEEK_BASE_URL:https://api.deepseek.com}
+        api-key: ${APPLYMATE_DEEPSEEK_API_KEY:}
+        model: ${APPLYMATE_DEEPSEEK_MODEL:deepseek-v4-flash}
+        capabilities:
+          structured-output: true
+      local:
+        enabled: ${APPLYMATE_LOCAL_LLM_ENABLED:false}
+        base-url: ${APPLYMATE_LOCAL_LLM_BASE_URL:http://127.0.0.1:11434/v1}
+        api-key: ${APPLYMATE_LOCAL_LLM_API_KEY:local}
+        # Ollama 会忽略占位 api-key；model 必须与本机 ollama list 中的名称一致。
+        model: ${APPLYMATE_LOCAL_LLM_MODEL:qwen3:8b}
+        capabilities:
+          structured-output: true
+    routes:
+      # 故障转移优先级：先尝试第一个可用供应商，再在限流/服务故障时尝试后续供应商。
+      resume-parse:
+        candidates: [deepseek, qwen, local]
+        max-output-tokens: ${APPLYMATE_LLM_RESUME_PARSE_MAX_OUTPUT_TOKENS:8192}
+      low-confidence-field-match:
+        candidates: [deepseek, qwen, local]
+        max-output-tokens: ${APPLYMATE_LLM_FIELD_MAPPING_MAX_OUTPUT_TOKENS:2048}
+      # 当前仅预留，视觉简历解析尚未实现图片消息传输。
+      resume-vision:
+        candidates: []
+

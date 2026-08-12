@@ -29,6 +29,13 @@ public class LlmProviderRouter {
         throw new IllegalArgumentException(requiresVision ? "VISION_UNAVAILABLE" : "AI_PROVIDER_UNAVAILABLE");
     }
 
+    public SelectedProvider selectProvider(String id, boolean requiresVision) {
+        if (id == null || id.isBlank()) throw new IllegalArgumentException("AI_PROVIDER_NOT_SELECTED");
+        LlmProperties.Provider provider = properties.getProviders().get(id);
+        if (!available(id, provider, requiresVision)) throw new IllegalArgumentException("AI_PROVIDER_UNAVAILABLE: " + id);
+        return new SelectedProvider(id, provider.getBaseUrl(), provider.getModel());
+    }
+
     public void recordRecoverableFailure(String id) {
         failures.compute(id, (key, state) -> state == null ? new FailureState(1, Instant.now()) : state.next());
     }

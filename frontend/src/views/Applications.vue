@@ -159,6 +159,12 @@
           </el-form-item>
         </el-col>
       </el-row>
+      <el-form-item label="个人档案版本">
+        <el-select v-model="form.profileId" clearable filterable placeholder="选择本次投递使用的档案版本">
+          <el-option v-for="item in profileVersions" :key="item.profileId" :label="item.defaultProfile ? `${item.name}（默认）` : item.name" :value="item.profileId" />
+        </el-select>
+        <div class="form-item-hint">与简历文件独立选择；浏览器扩展可优先使用此版本填写。</div>
+      </el-form-item>
       <el-form-item label="投递简历名称">
         <div class="resume-alias-editor">
           <el-select v-model="namingTemplate" placeholder="选择命名模板" @change="regenerateResumeAlias">
@@ -199,8 +205,8 @@
 import { ChatDotRound, CircleCheck, Collection, EditPen, Medal, Promotion, Star, User, Warning } from '@element-plus/icons-vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { applicationApi, recruitmentTypeOptions, resumeApi, resumeCategoryOptions, statusOptions, storageApi, typeOptions } from '../api'
-import type { JobApplication, Resume } from '../types'
+import { applicationApi, candidateProfileApi, recruitmentTypeOptions, resumeApi, resumeCategoryOptions, statusOptions, storageApi, typeOptions } from '../api'
+import type { CandidateProfileSummary, JobApplication, Resume } from '../types'
 import { formatDateTime } from '../utils/time'
 import { parseSavedResumeNamingTemplates, renderResumeName, resumeNamingPresets, templateForSelection } from '../utils/resumeNaming'
 
@@ -208,6 +214,7 @@ type ApplicationRow = JobApplication & { rowKey?: string; isGroup?: boolean; chi
 
 const rows = ref<ApplicationRow[]>([])
 const resumes = ref<Resume[]>([])
+const profileVersions = ref<CandidateProfileSummary[]>([])
 const dynamicStatusOptions = ref<string[]>([...statusOptions])
 const dynamicTypeOptions = ref<string[]>([...typeOptions])
 const dynamicResumeCategoryOptions = ref<string[]>([...resumeCategoryOptions])
@@ -285,7 +292,7 @@ watch(groupByCompany, () => {
 })
 
 onMounted(async () => {
-  await Promise.all([load(), loadResumes(), loadFilterOptions(), loadNamingSettings()])
+  await Promise.all([load(), loadResumes(), loadProfileVersions(), loadFilterOptions(), loadNamingSettings()])
 })
 
 watch(() => [
@@ -349,6 +356,10 @@ async function load() {
 
 async function loadResumes() {
   resumes.value = await resumeApi.list() as unknown as Resume[]
+}
+
+async function loadProfileVersions() {
+  profileVersions.value = await candidateProfileApi.versions()
 }
 
 async function loadNamingSettings() {
@@ -563,6 +574,7 @@ function openCreate() {
     jobDescription: '',
     appliedTime: '',
     resumeId: undefined,
+    profileId: undefined,
     resumeAlias: '',
     remark: ''
   })
@@ -617,6 +629,12 @@ function regenerateResumeAlias() {
 function fileExtension(fileName?: string) {
   const index = fileName?.lastIndexOf('.') ?? -1
   return index >= 0 && fileName ? fileName.slice(index) : ''
+}
+
+function profileVersionName(profileId?: string) {
+  if (!profileId) return '未关联'
+  const item = profileVersions.value.find(profile => profile.profileId === profileId)
+  return item ? (item.defaultProfile ? `${item.name}（默认）` : item.name) : '档案版本已不存在'
 }
 
 async function save() {

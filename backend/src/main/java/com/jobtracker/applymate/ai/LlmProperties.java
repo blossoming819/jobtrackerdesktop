@@ -15,7 +15,10 @@ public class LlmProperties {
     private Map<String, Route> routes = new LinkedHashMap<>();
 
     @Data public static class CircuitBreaker { private int failureThreshold = 3; private int openDurationSeconds = 60; }
-    @Data public static class Route { private List<String> candidates = List.of(); }
+    @Data public static class Route {
+        private List<String> candidates = List.of();
+        private int maxOutputTokens = 4096;
+    }
     @Data public static class Provider {
         private boolean enabled;
         private String baseUrl;

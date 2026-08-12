@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 public record ProfileSnapshotResponse(
         Long id,
         int revision,
+        String description,
         LocalDateTime createdAt
 ) {
 }

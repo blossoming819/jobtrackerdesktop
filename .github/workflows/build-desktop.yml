@@ -1,4 +1,4 @@
-name: Build Windows desktop installers
+name: Build Windows release artifacts
 
 on:
   workflow_dispatch:
@@ -9,11 +9,13 @@ on:
       - "backend/**"
       - "frontend/**"
       - "desktop/**"
+      - "extension/**"
+      - "contracts/**"
       - ".github/workflows/build-desktop.yml"
 
 jobs:
   windows:
-    name: Windows installers
+    name: Windows desktop and ApplyMate
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -38,10 +40,25 @@ jobs:
         shell: pwsh
         run: desktop/build-desktop-full.ps1 -Maven mvn.cmd -Jlink jlink.exe
 
-      - name: Upload Windows installers
+      - name: Build ApplyMate extension
+        shell: pwsh
+        working-directory: extension
+        run: |
+          npm ci
+          npm run build
+
+      - name: Package ApplyMate extension
+        shell: pwsh
+        run: |
+          $version = (Get-Content extension/package.json -Raw | ConvertFrom-Json).version
+          $archive = "desktop/release/ApplyMate-$version-chrome-mv3.zip"
+          Compress-Archive -Path "extension/.output/chrome-mv3/*" -DestinationPath $archive -Force
+
+      - name: Upload Windows release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: jobtracker-windows-installers
+          name: jobtracker-windows-release
           path: |
             desktop/release/*.exe
             desktop/release/*.blockmap
+            desktop/release/ApplyMate-*-chrome-mv3.zip

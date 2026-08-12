@@ -14,6 +14,9 @@ public class CandidateProfile extends BaseEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
     private String profileId;
+    private String profileName;
+    private String profileDescription;
+    private Long sourceResumeId;
     private String schemaVersion;
     private String contentJson;
     private Integer revision;
