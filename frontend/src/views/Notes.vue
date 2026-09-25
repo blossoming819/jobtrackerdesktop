@@ -101,8 +101,9 @@
             </div>
           </div>
           <div class="notes-savebar">
+            <span class="notes-save-hint">Ctrl+S 快速保存</span>
             <el-button @click="cancelEdit">取消</el-button>
-            <el-button type="primary" @click="saveSelected">
+            <el-button type="primary" :loading="saving" @click="saveSelected">
               <el-icon><Check /></el-icon>保存内容
             </el-button>
           </div>
@@ -188,7 +189,7 @@
 
 <script setup lang="ts">
 import MarkdownIt from 'markdown-it'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Delete, Document, DocumentAdd, Download, Edit, Files, FolderAdd, FolderOpened, Memo, Tickets, Upload } from '@element-plus/icons-vue'
 import { noteItemApi } from '../api'
@@ -203,6 +204,7 @@ const selected = ref<NoteItem | null>(null)
 const dragging = ref<NoteItem | null>(null)
 const rootDragOver = ref(false)
 const editing = ref(false)
+const saving = ref(false)
 const createVisible = ref(false)
 const infoVisible = ref(false)
 const createType = ref<'FOLDER' | 'NOTE'>('FOLDER')
@@ -217,7 +219,12 @@ const selectableFolderOptions = computed(() => selectableFoldersFor(selected.val
 const infoFolderOptions = computed(() => selectableFoldersFor(infoForm as NoteItem))
 const notePreview = computed(() => md.render(selected.value?.content || ''))
 
-onMounted(load)
+onMounted(() => {
+  load()
+  window.addEventListener('keydown', handleSaveShortcut)
+})
+
+onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveShortcut))
 
 async function load() {
   rows.value = await noteItemApi.list() as unknown as NoteItem[]
@@ -381,11 +388,22 @@ async function saveInfo() {
 }
 
 async function saveSelected() {
-  if (!selected.value?.id) return
-  await noteItemApi.update(selected.value.id, selected.value)
-  ElMessage.success('内容已保存')
-  editing.value = false
-  await load()
+  if (!selected.value?.id || saving.value) return
+  saving.value = true
+  try {
+    await noteItemApi.update(selected.value.id, selected.value)
+    ElMessage.success('内容已保存')
+    editing.value = false
+    await load()
+  } finally {
+    saving.value = false
+  }
+}
+
+function handleSaveShortcut(event: KeyboardEvent) {
+  if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 's' || !editing.value) return
+  event.preventDefault()
+  saveSelected()
 }
 
 async function removeSelected() {

@@ -6,9 +6,27 @@
     <div class="stat"><span>Offer 数量</span><strong>{{ data.offerCount || 0 }}</strong></div>
     <div class="stat"><span>今日日程</span><strong>{{ data.todayReminders?.length || 0 }}</strong></div>
   </div>
+  <div class="application-period-grid">
+    <div v-for="period in periodCards" :key="period.key" class="period-stat panel">
+      <div class="period-stat-head">
+        <span>{{ period.title }}</span>
+        <small>{{ period.compareLabel }}</small>
+      </div>
+      <div class="period-stat-value">{{ period.stats.currentCount }}</div>
+      <div class="period-stat-compare" :class="comparisonClass(period.stats.change)">
+        <span>{{ comparisonText(period.stats.change) }}</span>
+        <small>上一周期 {{ period.stats.previousCount }} 个</small>
+      </div>
+    </div>
+  </div>
   <div class="chart-grid">
     <div class="panel"><div ref="pieRef" class="chart"></div></div>
-    <div class="panel"><div ref="lineRef" class="chart"></div></div>
+    <div class="panel trend-panel">
+      <div class="trend-switch">
+        <el-segmented v-model="trendPeriod" :options="trendOptions" @change="updateTrendChart" />
+      </div>
+      <div ref="lineRef" class="chart"></div>
+    </div>
     <div class="panel"><div ref="barRef" class="chart"></div></div>
     <div class="panel">
       <div class="section-heading">
@@ -85,7 +103,7 @@
 
 <script setup lang="ts">
 import * as echarts from 'echarts'
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ChatDotRound, CircleCheck, Collection, EditPen, Medal, Promotion, Star, User, Warning } from '@element-plus/icons-vue'
 import { dashboardApi } from '../api'
 import { formatDateTime, formatTime } from '../utils/time'
@@ -95,7 +113,22 @@ const lineRef = ref<HTMLDivElement>()
 const barRef = ref<HTMLDivElement>()
 const data = ref<any>({})
 const recentExpanded = ref(true)
+const trendPeriod = ref<'day' | 'week' | 'month'>('day')
+const trendOptions = [
+  { label: '日', value: 'day' },
+  { label: '周', value: 'week' },
+  { label: '月', value: 'month' }
+]
+const periodCards = computed(() => {
+  const stats = data.value.applicationPeriodStats || {}
+  return [
+    { key: 'day', title: '今日投递', compareLabel: '较昨日', stats: stats.day || emptyPeriodStats() },
+    { key: 'week', title: '本周投递', compareLabel: '较上周', stats: stats.week || emptyPeriodStats() },
+    { key: 'month', title: '本月投递', compareLabel: '较上月', stats: stats.month || emptyPeriodStats() }
+  ]
+})
 const chartInstances: echarts.ECharts[] = []
+let trendChart: echarts.ECharts | undefined
 let chartResizeObserver: ResizeObserver | undefined
 let chartResizeFrame: number | undefined
 let chartSettleTimer: number | undefined
@@ -150,15 +183,14 @@ function renderCharts() {
       data: Object.entries(status).map(([name, value]) => ({ name, value }))
     }]
   })
-  const trend = data.value.weeklyTrend || {}
-  const lineChart = echarts.init(lineRef.value!)
-  chartInstances.push(lineChart)
-  lineChart.setOption({
+  trendChart = echarts.init(lineRef.value!)
+  chartInstances.push(trendChart)
+  trendChart.setOption({
     color: [chartPalette[0]],
-    title: { text: '每周投递趋势', left: 0, top: 0, textStyle: { color: chartText, fontFamily: chartTitleFont, fontSize: 18, fontWeight: 600 } },
+    title: { text: '', left: 0, top: 0, textStyle: { color: chartText, fontFamily: chartTitleFont, fontSize: 18, fontWeight: 600 } },
     tooltip: { trigger: 'axis' },
     grid: { left: 42, right: 20, top: 58, bottom: 34 },
-    xAxis: { type: 'category', data: Object.keys(trend), axisLine: { lineStyle: { color: chartGrid } }, axisLabel: { color: chartMuted } },
+    xAxis: { type: 'category', data: [], axisLine: { lineStyle: { color: chartGrid } }, axisLabel: { color: chartMuted } },
     yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: chartGrid, type: 'dashed' } }, axisLabel: { color: chartMuted } },
     series: [{
       type: 'line',
@@ -167,9 +199,10 @@ function renderCharts() {
       symbolSize: 7,
       lineStyle: { width: 3 },
       areaStyle: { color: 'rgba(193, 95, 60, .10)' },
-      data: Object.values(trend)
+      data: []
     }]
   })
+  updateTrendChart()
   const company = data.value.companyCount || {}
   const barChart = echarts.init(barRef.value!)
   chartInstances.push(barChart)
@@ -182,6 +215,35 @@ function renderCharts() {
     yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: chartGrid, type: 'dashed' } }, axisLabel: { color: chartMuted } },
     series: [{ type: 'bar', barMaxWidth: 32, itemStyle: { borderRadius: [6, 6, 0, 0] }, data: Object.values(company) }]
   })
+}
+
+function updateTrendChart() {
+  const config = {
+    day: { title: '近 14 日投递趋势', data: data.value.dailyTrend || {} },
+    week: { title: '近 12 周投递趋势', data: data.value.weeklyTrend || {} },
+    month: { title: '近 12 月投递趋势', data: data.value.monthlyTrend || {} }
+  }[trendPeriod.value]
+  trendChart?.setOption({
+    title: { text: config.title },
+    xAxis: { data: Object.keys(config.data) },
+    series: [{ data: Object.values(config.data) }]
+  })
+}
+
+function emptyPeriodStats() {
+  return { currentCount: 0, previousCount: 0, change: 0 }
+}
+
+function comparisonText(change: number) {
+  if (change > 0) return `多投 ${change} 个`
+  if (change < 0) return `少投 ${Math.abs(change)} 个`
+  return '持平'
+}
+
+function comparisonClass(change: number) {
+  if (change > 0) return 'is-more'
+  if (change < 0) return 'is-less'
+  return 'is-equal'
 }
 
 function trackChartSizes() {

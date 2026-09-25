@@ -13,7 +13,10 @@ public class DashboardVO {
     private Long interviewCount;
     private Long offerCount;
     private Map<String, Long> statusCount;
+    private Map<String, ApplicationPeriodStatsVO> applicationPeriodStats;
+    private Map<String, Long> dailyTrend;
     private Map<String, Long> weeklyTrend;
+    private Map<String, Long> monthlyTrend;
     private Map<String, Long> companyCount;
     private List<JobApplication> recentApplications;
     private List<Reminder> todayReminders;
