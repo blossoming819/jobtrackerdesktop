@@ -264,18 +264,14 @@ const displayRows = computed<ApplicationRow[]>(() => {
   if (!groupByCompany.value) {
     return rows.value.map(row => ({ ...row, rowKey: `job-${row.id}` }))
   }
-  const groups = new Map<string, ApplicationRow[]>()
-  rows.value.forEach(row => {
-    const key = row.companyName || '未填写公司'
-    groups.set(key, [...(groups.get(key) || []), { ...row, rowKey: `job-${row.id}` }])
-  })
-  return Array.from(groups.entries()).map(([companyName, children]) => ({
-    rowKey: `company-${companyName}`,
+  return rows.value.map((group, index) => ({
+    ...group,
+    rowKey: `company-${group.companyName || index}`,
     isGroup: true,
-    companyName,
+    companyName: group.companyName || '未填写公司',
     positionName: '',
     currentStatus: '',
-    children
+    children: (group.children || []).map(row => ({ ...row, rowKey: `job-${row.id}` }))
   } as ApplicationRow))
 })
 
@@ -289,6 +285,7 @@ watch(sortMode, value => {
 
 watch(groupByCompany, () => {
   query.pageNo = 1
+  load()
 })
 
 onMounted(async () => {
@@ -348,7 +345,9 @@ function queryParams() {
 }
 
 async function load() {
-  const page: any = await applicationApi.page(queryParams())
+  const page: any = groupByCompany.value
+    ? await applicationApi.pageGroupedByCompany(queryParams())
+    : await applicationApi.page(queryParams())
   rows.value = page.records
   total.value = page.total
   clearSelection()

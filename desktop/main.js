@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron')
+const { app, BrowserWindow, dialog, ipcMain, session } = require('electron')
 const { spawn } = require('child_process')
 const http = require('http')
 const path = require('path')
@@ -166,7 +166,9 @@ function createWindow() {
     }
   })
 
-  win.loadURL(BASE_URL)
+  const jarStats = fs.statSync(backendJarPath())
+  const buildFingerprint = `${app.getVersion()}-${Math.trunc(jarStats.mtimeMs)}-${jarStats.size}`
+  win.loadURL(`${BASE_URL}/?desktopBuild=${encodeURIComponent(buildFingerprint)}`)
 }
 
 app.whenReady().then(async () => {
@@ -180,6 +182,10 @@ app.whenReady().then(async () => {
 
   try {
     await startBackend()
+    // Electron keeps its HTTP cache across launches. Clear only cached web
+    // resources so an upgraded backend cannot reopen an older bundled UI.
+    // Cookies, local storage and all JobTracker data remain untouched.
+    await session.defaultSession.clearCache()
     createWindow()
   } catch (error) {
     dialog.showErrorBox('启动失败', error.message)

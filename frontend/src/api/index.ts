@@ -24,6 +24,7 @@ export const resumeCategoryOptions = ['Java 简历', '算法简历', 'AI 简历'
 
 export const applicationApi = {
   page: (params: Record<string, unknown>) => http.get('/applications', { params }),
+  pageGroupedByCompany: (params: Record<string, unknown>) => http.get('/applications/grouped-by-company', { params }),
   statusOptions: () => http.get('/applications/status-options'),
   positionTypeOptions: () => http.get('/applications/position-type-options'),
   resumeCategoryOptions: () => http.get('/applications/resume-category-options'),

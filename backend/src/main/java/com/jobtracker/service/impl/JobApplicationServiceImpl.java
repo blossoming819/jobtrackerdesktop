@@ -18,13 +18,17 @@ import com.jobtracker.service.JobApplicationService;
 import com.jobtracker.service.ReminderService;
 import com.jobtracker.service.ResumeService;
 import com.jobtracker.vo.ApplicationDetailVO;
+import com.jobtracker.vo.ApplicationCompanyGroupVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -50,6 +54,46 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
 
     @Override
     public Page<JobApplication> pageApplications(ApplicationQueryDTO query) {
+        QueryWrapper<JobApplication> wrapper = applicationQuery(query);
+        return page(new Page<>(query.getPageNo(), query.getPageSize()), wrapper);
+    }
+
+    @Override
+    public Page<ApplicationCompanyGroupVO> pageApplicationCompanies(ApplicationQueryDTO query) {
+        List<JobApplication> applications = list(applicationQuery(query));
+        Map<String, ApplicationCompanyGroupVO> groups = new LinkedHashMap<>();
+        for (JobApplication application : applications) {
+            String companyName = normalizeCompanyName(application.getCompanyName());
+            String companyKey = companyName.toLowerCase(Locale.ROOT);
+            ApplicationCompanyGroupVO group = groups.computeIfAbsent(companyKey, ignored -> {
+                ApplicationCompanyGroupVO created = new ApplicationCompanyGroupVO();
+                created.setCompanyName(companyName);
+                return created;
+            });
+            group.getChildren().add(application);
+        }
+
+        List<ApplicationCompanyGroupVO> allGroups = new ArrayList<>(groups.values());
+        long pageNo = Math.max(query.getPageNo(), 1L);
+        long pageSize = Math.max(query.getPageSize(), 1L);
+        int fromIndex = (int) Math.min((pageNo - 1) * pageSize, allGroups.size());
+        int toIndex = (int) Math.min(fromIndex + pageSize, allGroups.size());
+        Page<ApplicationCompanyGroupVO> result = new Page<>(pageNo, pageSize, allGroups.size());
+        result.setRecords(allGroups.subList(fromIndex, toIndex));
+        return result;
+    }
+
+    private String normalizeCompanyName(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "未填写公司";
+        }
+        String normalized = Normalizer.normalize(value, Normalizer.Form.NFKC)
+                .replaceAll("[\\p{Z}\\s\\p{Cf}]+", " ")
+                .strip();
+        return normalized.isEmpty() ? "未填写公司" : normalized;
+    }
+
+    private QueryWrapper<JobApplication> applicationQuery(ApplicationQueryDTO query) {
         QueryWrapper<JobApplication> wrapper = new QueryWrapper<>();
         wrapper.lambda()
                 .like(StringUtils.hasText(query.getCompanyName()), JobApplication::getCompanyName, query.getCompanyName())
@@ -60,7 +104,7 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
                 .ge(query.getAppliedStartTime() != null, JobApplication::getAppliedTime, query.getAppliedStartTime())
                 .le(query.getAppliedEndTime() != null, JobApplication::getAppliedTime, query.getAppliedEndTime());
         applySort(wrapper, query);
-        return page(new Page<>(query.getPageNo(), query.getPageSize()), wrapper);
+        return wrapper;
     }
 
     private void applySort(QueryWrapper<JobApplication> wrapper, ApplicationQueryDTO query) {
