@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS job_application (
   progress_result VARCHAR(40),
   progress_operated_time TIMESTAMP,
   applied_time TIMESTAMP,
+  submission_group_id VARCHAR(80),
+  preference_order INT,
   resume_id BIGINT,
   remark VARCHAR(1000),
   created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -43,12 +45,17 @@ CREATE TABLE IF NOT EXISTS job_application (
   deleted TINYINT DEFAULT 0
 );
 
+-- Keep existing desktop data files compatible with submission groups and preferences.
+ALTER TABLE job_application ADD COLUMN IF NOT EXISTS submission_group_id VARCHAR(80);
+ALTER TABLE job_application ADD COLUMN IF NOT EXISTS preference_order INT;
+
 CREATE INDEX IF NOT EXISTS idx_application_company ON job_application (company_name);
 CREATE INDEX IF NOT EXISTS idx_application_status ON job_application (current_status);
 CREATE INDEX IF NOT EXISTS idx_application_type ON job_application (position_type);
 CREATE INDEX IF NOT EXISTS idx_application_recruitment_type ON job_application (recruitment_type);
 CREATE INDEX IF NOT EXISTS idx_application_resume ON job_application (resume_id);
 CREATE INDEX IF NOT EXISTS idx_application_applied_time ON job_application (applied_time);
+CREATE INDEX IF NOT EXISTS idx_application_submission_group ON job_application (submission_group_id);
 CREATE INDEX IF NOT EXISTS idx_application_deleted ON job_application (deleted);
 
 -- Keep existing desktop data files compatible when a per-application resume name is introduced.

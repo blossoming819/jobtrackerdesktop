@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URLEncoder;
@@ -89,8 +90,16 @@ public class JobApplicationController {
 
     @PostMapping
     public Result<JobApplication> create(@RequestBody JobApplication application) {
-        jobApplicationService.save(application);
-        return Result.ok(application);
+        return Result.ok(jobApplicationService.createApplication(application));
+    }
+
+    @PostMapping("/{sourceId}/create-from")
+    public Result<JobApplication> createFrom(
+            @PathVariable Long sourceId,
+            @RequestParam(defaultValue = "false") boolean sameSubmission,
+            @RequestBody JobApplication application
+    ) {
+        return Result.ok(jobApplicationService.createFromApplication(sourceId, application, sameSubmission));
     }
 
     @PutMapping("/{id}")

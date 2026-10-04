@@ -30,6 +30,7 @@ export const applicationApi = {
   resumeCategoryOptions: () => http.get('/applications/resume-category-options'),
   detail: (id: number) => http.get(`/applications/${id}`),
   create: (data: JobApplication) => http.post('/applications', data),
+  createFrom: (sourceId: number, data: JobApplication, sameSubmission: boolean) => http.post(`/applications/${sourceId}/create-from`, data, { params: { sameSubmission } }),
   update: (id: number, data: JobApplication) => http.put(`/applications/${id}`, data),
   remove: (id: number) => http.delete(`/applications/${id}`),
   batchRemove: (ids: number[]) => http.delete('/applications/batch', { data: { ids } }),

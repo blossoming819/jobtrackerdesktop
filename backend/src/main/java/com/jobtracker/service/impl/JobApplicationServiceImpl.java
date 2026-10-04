@@ -21,6 +21,7 @@ import com.jobtracker.vo.ApplicationDetailVO;
 import com.jobtracker.vo.ApplicationCompanyGroupVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.text.Normalizer;
@@ -31,6 +32,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -168,6 +170,61 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
             addSplitOptions(options, application.getResumeCategory());
         }
         return new ArrayList<>(options);
+    }
+
+    @Override
+    public JobApplication createApplication(JobApplication application) {
+        prepareNewSubmission(application);
+        save(application);
+        return application;
+    }
+
+    @Override
+    @Transactional
+    public JobApplication createFromApplication(Long sourceId, JobApplication application, boolean sameSubmission) {
+        JobApplication source = getById(sourceId);
+        if (source == null) {
+            throw new IllegalArgumentException("用于复用的原投递记录不存在");
+        }
+        application.setId(null);
+        if (!sameSubmission) {
+            prepareNewSubmission(application);
+            save(application);
+            return application;
+        }
+
+        String groupId = source.getSubmissionGroupId();
+        if (!StringUtils.hasText(groupId)) {
+            groupId = UUID.randomUUID().toString();
+            source.setSubmissionGroupId(groupId);
+            source.setPreferenceOrder(1);
+            updateById(source);
+        } else if (source.getPreferenceOrder() == null) {
+            source.setPreferenceOrder(1);
+            updateById(source);
+        }
+
+        Integer maxOrder = lambdaQuery()
+                .eq(JobApplication::getSubmissionGroupId, groupId)
+                .isNotNull(JobApplication::getPreferenceOrder)
+                .list()
+                .stream()
+                .map(JobApplication::getPreferenceOrder)
+                .max(Integer::compareTo)
+                .orElse(0);
+        application.setSubmissionGroupId(groupId);
+        application.setPreferenceOrder(Math.max(maxOrder + 1, 2));
+        save(application);
+        return application;
+    }
+
+    private void prepareNewSubmission(JobApplication application) {
+        if (!StringUtils.hasText(application.getSubmissionGroupId())) {
+            application.setSubmissionGroupId(UUID.randomUUID().toString());
+        }
+        if (application.getPreferenceOrder() != null && application.getPreferenceOrder() < 1) {
+            application.setPreferenceOrder(null);
+        }
     }
 
     @Override

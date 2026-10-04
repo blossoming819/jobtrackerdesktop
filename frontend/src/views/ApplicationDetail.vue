@@ -78,6 +78,11 @@
       <div class="summary-label">投递时间</div>
       <div class="summary-value summary-value-wide">{{ formatDate(application.appliedTime) || '-' }}</div>
 
+      <div class="summary-label">投递关系</div>
+      <div class="summary-value summary-value-wide">
+        {{ application.preferenceOrder ? `同次网申 · 第 ${application.preferenceOrder} 志愿` : '独立岗位投递' }}
+      </div>
+
       <div class="summary-label">链接</div>
       <div class="summary-value summary-value-wide">
         <el-tooltip v-if="application.jobLink" :content="application.jobLink" placement="top-start" :show-after="300">

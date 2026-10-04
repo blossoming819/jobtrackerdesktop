@@ -30,6 +30,8 @@ public class JobApplication extends BaseEntity {
     private String progressResult;
     private LocalDateTime progressOperatedTime;
     private LocalDateTime appliedTime;
+    private String submissionGroupId;
+    private Integer preferenceOrder;
     private Long resumeId;
     private String profileId;
     private String remark;

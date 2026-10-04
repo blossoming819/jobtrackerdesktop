@@ -10,6 +10,8 @@ import java.util.Map;
 @Data
 public class DashboardVO {
     private Long totalApplications;
+    private Long totalCompanies;
+    private Long totalSubmissions;
     private Long interviewCount;
     private Long offerCount;
     private Map<String, Long> statusCount;

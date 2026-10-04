@@ -1,7 +1,9 @@
 <template>
   <h1 class="page-title">Dashboard</h1>
-  <div class="stat-grid">
-    <div class="stat"><span>总投递数量</span><strong>{{ data.totalApplications || 0 }}</strong></div>
+  <div class="stat-grid dashboard-stat-grid">
+    <div class="stat"><span>投递岗位</span><strong>{{ data.totalApplications || 0 }}</strong></div>
+    <div class="stat"><span>投递企业</span><strong>{{ data.totalCompanies || 0 }}</strong></div>
+    <div class="stat"><span>投递次数</span><strong>{{ data.totalSubmissions || 0 }}</strong></div>
     <div class="stat"><span>面试数量</span><strong>{{ data.interviewCount || 0 }}</strong></div>
     <div class="stat"><span>Offer 数量</span><strong>{{ data.offerCount || 0 }}</strong></div>
     <div class="stat"><span>今日日程</span><strong>{{ data.todayReminders?.length || 0 }}</strong></div>
@@ -56,7 +58,7 @@
   </div>
   <div class="panel">
     <div class="section-heading">
-      <div><h3>最近投递记录</h3><span>展示最近五条；按投递时间倒序排列，未填写时用最近更新时间兜底。</span></div>
+      <div><h3>最近投递岗位</h3><span>展示最近五个岗位；按投递时间倒序排列，未填写时用最近更新时间兜底。</span></div>
       <el-button text @click="recentExpanded = !recentExpanded">{{ recentExpanded ? '收起' : '展开' }}</el-button>
     </div>
     <el-table v-show="recentExpanded" :data="(data.recentApplications || []).slice(0, 5)">
@@ -122,9 +124,9 @@ const trendOptions = [
 const periodCards = computed(() => {
   const stats = data.value.applicationPeriodStats || {}
   return [
-    { key: 'day', title: '今日投递', compareLabel: '较昨日', stats: stats.day || emptyPeriodStats() },
-    { key: 'week', title: '本周投递', compareLabel: '较上周', stats: stats.week || emptyPeriodStats() },
-    { key: 'month', title: '本月投递', compareLabel: '较上月', stats: stats.month || emptyPeriodStats() }
+    { key: 'day', title: '今日投递岗位', compareLabel: '较昨日', stats: stats.day || emptyPeriodStats() },
+    { key: 'week', title: '本周投递岗位', compareLabel: '较上周', stats: stats.week || emptyPeriodStats() },
+    { key: 'month', title: '本月投递岗位', compareLabel: '较上月', stats: stats.month || emptyPeriodStats() }
   ]
 })
 const chartInstances: echarts.ECharts[] = []
@@ -208,7 +210,7 @@ function renderCharts() {
   chartInstances.push(barChart)
   barChart.setOption({
     color: [chartPalette[1]],
-    title: { text: '公司投递数量', left: 0, top: 0, textStyle: { color: chartText, fontFamily: chartTitleFont, fontSize: 18, fontWeight: 600 } },
+    title: { text: '公司岗位数量', left: 0, top: 0, textStyle: { color: chartText, fontFamily: chartTitleFont, fontSize: 18, fontWeight: 600 } },
     tooltip: { trigger: 'axis' },
     grid: { left: 42, right: 20, top: 58, bottom: 34 },
     xAxis: { type: 'category', data: Object.keys(company), axisLine: { lineStyle: { color: chartGrid } }, axisLabel: { color: chartMuted } },

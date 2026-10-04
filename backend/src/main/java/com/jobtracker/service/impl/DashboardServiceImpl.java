@@ -18,6 +18,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -33,6 +34,16 @@ public class DashboardServiceImpl implements DashboardService {
         List<JobApplication> applications = jobApplicationService.list();
         DashboardVO vo = new DashboardVO();
         vo.setTotalApplications((long) applications.size());
+        vo.setTotalCompanies(applications.stream()
+                .map(JobApplication::getCompanyName)
+                .map(this::normalizedCompanyKey)
+                .filter(name -> !name.isBlank())
+                .distinct()
+                .count());
+        vo.setTotalSubmissions(applications.stream()
+                .map(this::submissionKey)
+                .distinct()
+                .count());
         vo.setInterviewCount(interviewRecordService.count(new LambdaQueryWrapper<InterviewRecord>()));
         vo.setOfferCount(applications.stream().filter(item -> "Offer".equals(item.getCurrentStatus())).count());
         vo.setStatusCount(applications.stream().collect(Collectors.groupingBy(JobApplication::getCurrentStatus, LinkedHashMap::new, Collectors.counting())));
@@ -125,5 +136,16 @@ public class DashboardServiceImpl implements DashboardService {
             return application.getUpdatedTime();
         }
         return java.time.LocalDateTime.MIN;
+    }
+
+    private String normalizedCompanyKey(String companyName) {
+        return companyName == null ? "" : companyName.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+    }
+
+    private String submissionKey(JobApplication application) {
+        if (application.getSubmissionGroupId() != null && !application.getSubmissionGroupId().isBlank()) {
+            return "group:" + application.getSubmissionGroupId().trim();
+        }
+        return "legacy:" + (application.getId() == null ? System.identityHashCode(application) : application.getId());
     }
 }

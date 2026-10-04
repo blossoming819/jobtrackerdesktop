@@ -40,24 +40,35 @@
       <el-button @click="exitBatchMode">完成</el-button>
     </div>
 
-    <el-table ref="applicationTableRef" :data="displayRows" row-key="rowKey" :tree-props="{ children: 'children' }" default-expand-all @selection-change="handleSelectionChange">
+    <el-table class="applications-table" ref="applicationTableRef" :data="displayRows" row-key="rowKey" :row-class-name="applicationRowClass" @selection-change="handleSelectionChange">
       <el-table-column v-if="batchMode" type="selection" width="48" :selectable="selectableRow" />
-      <el-table-column prop="companyName" label="公司" min-width="150">
+      <el-table-column prop="companyName" label="公司" min-width="200">
         <template #default="{ row }">
-          <el-tooltip :content="row.companyName" placement="top" :disabled="!row.companyName">
-            <strong class="table-ellipsis">{{ row.companyName }}</strong>
+          <div v-if="row.isGroup" class="company-group-title">
+            <el-tooltip :content="row.companyName" placement="top" :disabled="!row.companyName">
+              <strong class="table-ellipsis">{{ row.companyName }}</strong>
+            </el-tooltip>
+          </div>
+          <el-tooltip v-else :content="row.companyName" placement="top" :disabled="!row.companyName">
+            <strong class="table-ellipsis" :class="{ 'company-child-name': groupByCompany }">{{ row.companyName }}</strong>
           </el-tooltip>
-          <el-tag v-if="row.isGroup" size="small" class="company-count">{{ row.children.length }} 个岗位</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="positionName" label="岗位" min-width="180">
         <template #default="{ row }">
-          <el-tooltip :content="row.isGroup ? '同公司投递合集' : row.positionName" placement="top">
-            <span class="table-ellipsis">{{ row.isGroup ? '同公司投递合集' : row.positionName }}</span>
-          </el-tooltip>
+          <div v-if="row.isGroup" class="company-group-summary">
+            <el-tag size="small" class="company-count">{{ row.groupChildren?.length || 0 }} 个岗位</el-tag>
+            <span>同公司投递合集</span>
+          </div>
+          <div v-else class="position-cell">
+            <el-tooltip :content="row.positionName" placement="top" :disabled="!row.positionName">
+              <span class="table-ellipsis">{{ row.positionName }}</span>
+            </el-tooltip>
+            <el-tag v-if="row.preferenceOrder" class="preference-tag" size="small">第 {{ row.preferenceOrder }} 志愿</el-tag>
+          </div>
         </template>
       </el-table-column>
-      <el-table-column prop="positionType" label="岗位类别" min-width="180">
+      <el-table-column prop="positionType" label="岗位类别" min-width="160">
         <template #default="{ row }">
           <el-tooltip v-if="!row.isGroup" :content="row.positionType || '-'" placement="top" :disabled="!row.positionType">
             <div class="multi-tag-cell">
@@ -68,8 +79,8 @@
           </el-tooltip>
         </template>
       </el-table-column>
-      <el-table-column prop="recruitmentType" label="投递批次" width="110" show-overflow-tooltip />
-      <el-table-column prop="resumeCategory" label="简历类别" min-width="150">
+      <el-table-column prop="recruitmentType" label="投递批次" width="84" show-overflow-tooltip />
+      <el-table-column prop="resumeCategory" label="简历类别" min-width="160">
         <template #default="{ row }">
           <el-tooltip v-if="!row.isGroup" :content="row.resumeCategory || '-'" placement="top" :disabled="!row.resumeCategory">
             <div class="multi-tag-cell">
@@ -80,7 +91,7 @@
           </el-tooltip>
         </template>
       </el-table-column>
-      <el-table-column prop="currentStatus" label="状态" width="130">
+      <el-table-column prop="currentStatus" label="状态" width="104">
         <template #default="{ row }">
           <span v-if="!row.isGroup" class="status-pill" :class="statusMeta(displayStatus(row)).className">
             <el-icon><component :is="statusMeta(displayStatus(row)).icon" /></el-icon>
@@ -88,16 +99,25 @@
           </span>
         </template>
       </el-table-column>
-      <el-table-column prop="appliedTime" label="投递时间" width="180">
+      <el-table-column prop="appliedTime" label="投递时间" width="150">
         <template #default="{ row }">{{ row.isGroup ? '' : formatDate(row.appliedTime) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="230" fixed="right">
+      <el-table-column label="操作" width="180">
         <template #default="{ row }">
-          <template v-if="!row.isGroup">
+          <div v-if="!row.isGroup" class="application-row-actions">
             <el-button size="small" @click="$router.push(`/application/${row.id}`)">详情</el-button>
             <el-button size="small" @click="openEdit(row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="remove(row.id)">删除</el-button>
-          </template>
+            <el-dropdown trigger="click" @command="handleRowCommand($event, row)">
+              <el-button size="small">更多</el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="new-position">同公司新增岗位</el-dropdown-item>
+                  <el-dropdown-item command="next-preference">添加下一志愿</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided class="danger-dropdown-item">删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -112,8 +132,23 @@
     />
   </div>
 
-  <el-dialog v-model="dialogVisible" :title="form.id ? '编辑岗位' : '新增岗位'" width="780px">
+  <el-dialog v-model="dialogVisible" :title="dialogTitle" width="min(820px, 92vw)" class="application-dialog">
     <el-form :model="form" label-width="110px">
+      <el-form-item label="投递关系">
+        <template v-if="!form.id">
+          <el-radio-group v-model="submissionMode">
+            <el-radio-button value="independent">独立岗位投递</el-radio-button>
+            <el-radio-button value="preference">同次投递志愿</el-radio-button>
+          </el-radio-group>
+          <div class="form-item-hint submission-mode-hint">
+            {{ submissionMode === 'preference' ? '与原记录属于同一次网申，系统会自动生成下一志愿序号。' : '作为一次新的岗位投递单独统计。' }}
+          </div>
+        </template>
+        <el-tag v-else size="small">{{ form.preferenceOrder ? `第 ${form.preferenceOrder} 志愿` : '独立岗位投递' }}</el-tag>
+      </el-form-item>
+      <el-alert v-if="quickAddSourceId" class="quick-add-alert" type="info" :closable="false" show-icon>
+        已复用公司、招聘批次、地点、来源和简历信息；岗位名称、JD、链接、简历及其他字段都可独立修改。
+      </el-alert>
       <el-row :gutter="12">
         <el-col :span="12"><el-form-item label="公司名称"><el-input v-model="form.companyName" /></el-form-item></el-col>
         <el-col :span="12"><el-form-item label="岗位名称"><el-input v-model="form.positionName" /></el-form-item></el-col>
@@ -210,7 +245,7 @@ import type { CandidateProfileSummary, JobApplication, Resume } from '../types'
 import { formatDateTime } from '../utils/time'
 import { parseSavedResumeNamingTemplates, renderResumeName, resumeNamingPresets, templateForSelection } from '../utils/resumeNaming'
 
-type ApplicationRow = JobApplication & { rowKey?: string; isGroup?: boolean; children?: ApplicationRow[] }
+type ApplicationRow = JobApplication & { rowKey?: string; isGroup?: boolean; children?: ApplicationRow[]; groupChildren?: ApplicationRow[] }
 
 const rows = ref<ApplicationRow[]>([])
 const resumes = ref<Resume[]>([])
@@ -231,6 +266,8 @@ const formPositionTypes = ref<string[]>([])
 const formResumeCategories = ref<string[]>([])
 const namingTemplate = ref('company')
 const resumeAliasAuto = ref(true)
+const quickAddSourceId = ref<number>()
+const submissionMode = ref<'independent' | 'preference'>('independent')
 const namingSettings = reactive({ resumeOwnerName: '', resumeOwnerSchool: '', resumeGraduationYear: '', resumeCustomNamingTemplate: '', resumeCustomNamingTemplates: '' })
 const namingTemplates = computed(() => [
   ...resumeNamingPresets,
@@ -259,21 +296,38 @@ const formStatusOptions = computed(() => {
   const flowOptions = parseProgressFlow(form.progressFlow)
   return flowOptions.length ? flowOptions : statusOptions
 })
+const dialogTitle = computed(() => {
+  if (form.id) return '编辑岗位'
+  if (quickAddSourceId.value && submissionMode.value === 'preference') return '添加下一志愿'
+  if (quickAddSourceId.value) return '同公司新增岗位'
+  return '新增岗位'
+})
 
 const displayRows = computed<ApplicationRow[]>(() => {
   if (!groupByCompany.value) {
     return rows.value.map(row => ({ ...row, rowKey: `job-${row.id}` }))
   }
-  return rows.value.map((group, index) => ({
-    ...group,
-    rowKey: `company-${group.companyName || index}`,
-    isGroup: true,
-    companyName: group.companyName || '未填写公司',
-    positionName: '',
-    currentStatus: '',
-    children: (group.children || []).map(row => ({ ...row, rowKey: `job-${row.id}` }))
-  } as ApplicationRow))
+  return rows.value.flatMap((group, index) => {
+    const rowKey = group.rowKey || `company-${query.pageNo}-${index}`
+    const groupChildren = group.children || []
+    const { children: _children, ...groupWithoutChildren } = group
+    const groupRow = {
+      ...groupWithoutChildren,
+      rowKey,
+      isGroup: true,
+      companyName: group.companyName || '未填写公司',
+      positionName: '',
+      currentStatus: '',
+      groupChildren
+    } as ApplicationRow
+    return [
+      groupRow,
+      ...groupChildren.map(row => ({ ...row, rowKey: `job-${row.id}` }))
+    ]
+  })
 })
+
+let loadRequestId = 0
 
 watch(sortMode, value => {
   const [field, order] = value.split('-')
@@ -345,12 +399,25 @@ function queryParams() {
 }
 
 async function load() {
-  const page: any = groupByCompany.value
+  const requestId = ++loadRequestId
+  const grouped = groupByCompany.value
+  const page: any = grouped
     ? await applicationApi.pageGroupedByCompany(queryParams())
     : await applicationApi.page(queryParams())
-  rows.value = page.records
+  if (requestId !== loadRequestId || grouped !== groupByCompany.value) return
+  rows.value = grouped
+    ? page.records.map((group: ApplicationRow, index: number) => ({
+        ...group,
+        rowKey: `company-${query.pageNo}-${index}-${group.companyName || 'empty'}`
+      }))
+    : page.records
   total.value = page.total
   clearSelection()
+}
+
+function applicationRowClass({ row }: { row: ApplicationRow }) {
+  if (row.isGroup) return 'company-group-row'
+  return groupByCompany.value ? 'company-child-row' : ''
 }
 
 async function loadResumes() {
@@ -492,11 +559,11 @@ function splitMultiValue(value?: string) {
 }
 
 function visibleMultiTags(value?: string) {
-  return splitMultiValue(value).slice(0, 2)
+  return splitMultiValue(value)
 }
 
-function hiddenMultiTagCount(value?: string) {
-  return Math.max(splitMultiValue(value).length - 2, 0)
+function hiddenMultiTagCount(_value?: string) {
+  return 0
 }
 
 function tagStyle(value: string) {
@@ -562,21 +629,9 @@ function displayStatus(row: JobApplication) {
 }
 
 function openCreate() {
-  Object.assign(form, emptyForm(), {
-    id: undefined,
-    positionType: '',
-    resumeCategory: '',
-    workLocation: '',
-    salary: '',
-    source: '',
-    jobLink: '',
-    jobDescription: '',
-    appliedTime: '',
-    resumeId: undefined,
-    profileId: undefined,
-    resumeAlias: '',
-    remark: ''
-  })
+  resetForm()
+  quickAddSourceId.value = undefined
+  submissionMode.value = 'independent'
   formPositionTypes.value = []
   formResumeCategories.value = []
   resumeAliasAuto.value = true
@@ -584,7 +639,10 @@ function openCreate() {
 }
 
 function openEdit(row: JobApplication) {
+  resetForm()
   Object.assign(form, row)
+  quickAddSourceId.value = undefined
+  submissionMode.value = row.preferenceOrder ? 'preference' : 'independent'
   form.currentStatus = normalizedCurrentStatus(row)
   const options = parseProgressFlow(row.progressFlow)
   if (options.length && !options.includes(form.currentStatus)) {
@@ -594,6 +652,39 @@ function openEdit(row: JobApplication) {
   formResumeCategories.value = splitMultiValue(row.resumeCategory)
   resumeAliasAuto.value = false
   dialogVisible.value = true
+}
+
+function resetForm() {
+  Object.keys(form).forEach(key => delete (form as any)[key])
+  Object.assign(form, emptyForm())
+}
+
+function openQuickAdd(row: JobApplication, sameSubmission: boolean) {
+  if (!row.id) return
+  resetForm()
+  Object.assign(form, {
+    companyName: row.companyName,
+    recruitmentType: row.recruitmentType,
+    resumeCategory: row.resumeCategory,
+    workLocation: row.workLocation,
+    source: row.source,
+    resumeId: row.resumeId,
+    profileId: row.profileId,
+    currentStatus: '待投递'
+  })
+  quickAddSourceId.value = row.id
+  submissionMode.value = sameSubmission ? 'preference' : 'independent'
+  formPositionTypes.value = []
+  formResumeCategories.value = splitMultiValue(row.resumeCategory)
+  resumeAliasAuto.value = true
+  regenerateResumeAlias()
+  dialogVisible.value = true
+}
+
+function handleRowCommand(command: string, row: JobApplication) {
+  if (command === 'new-position') openQuickAdd(row, false)
+  if (command === 'next-preference') openQuickAdd(row, true)
+  if (command === 'delete' && row.id) remove(row.id)
 }
 
 function handleResumeChange(resumeId?: number) {
@@ -642,8 +733,21 @@ async function save() {
   if (!formStatusOptions.value.includes(form.currentStatus)) {
     form.currentStatus = formStatusOptions.value[0] || '待投递'
   }
-  form.id ? await applicationApi.update(form.id, form) : await applicationApi.create(form)
+  if (!form.companyName?.trim() || !form.positionName?.trim()) {
+    ElMessage.warning('请填写公司名称和岗位名称')
+    return
+  }
+  if (form.id) {
+    await applicationApi.update(form.id, form)
+  } else if (quickAddSourceId.value) {
+    await applicationApi.createFrom(quickAddSourceId.value, form, submissionMode.value === 'preference')
+  } else {
+    form.submissionGroupId = undefined
+    form.preferenceOrder = submissionMode.value === 'preference' ? 1 : undefined
+    await applicationApi.create(form)
+  }
   dialogVisible.value = false
+  quickAddSourceId.value = undefined
   await Promise.all([load(), loadFilterOptions()])
 }
 

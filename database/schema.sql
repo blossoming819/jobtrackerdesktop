@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS job_application (
   progress_result VARCHAR(40),
   progress_operated_time DATETIME,
   applied_time DATETIME,
+  submission_group_id VARCHAR(80),
+  preference_order INT,
   resume_id BIGINT,
   remark VARCHAR(1000),
   created_time DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -46,6 +48,7 @@ CREATE TABLE IF NOT EXISTS job_application (
   INDEX idx_application_recruitment_type (recruitment_type),
   INDEX idx_application_resume (resume_id),
   INDEX idx_application_applied_time (applied_time),
+  INDEX idx_application_submission_group (submission_group_id),
   INDEX idx_application_deleted (deleted)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

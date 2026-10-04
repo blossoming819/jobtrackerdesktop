@@ -16,6 +16,8 @@ export interface JobApplication {
   progressResult?: string
   progressOperatedTime?: string
   appliedTime?: string
+  submissionGroupId?: string
+  preferenceOrder?: number
   resumeId?: number
   profileId?: string
   remark?: string
