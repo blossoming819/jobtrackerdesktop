@@ -611,6 +611,17 @@ body { margin: 0; color: #172033; background: #f5f7fb; font-family: Inter, "Ping
 .position-cell { display: flex; min-width: 0; align-items: center; gap: 6px; }
 .position-cell .table-ellipsis { min-width: 0; flex: 1 1 auto; }
 .preference-tag { flex: 0 0 auto; white-space: nowrap; }
+.submission-summary-button { display: flex; width: 100%; min-width: 0; align-items: center; gap: 8px; padding: 0; border: 0; color: var(--jt-text); background: transparent; font: inherit; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.submission-summary-button > span:first-child { overflow: hidden; text-overflow: ellipsis; }
+.el-table .submission-group-row > td.el-table__cell { background: #fff9f4; cursor: pointer; }
+.el-table .submission-group-row:hover > td.el-table__cell { background: #f8eee7 !important; }
+.preference-dialog-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.preference-dialog-summary > div { display: flex; min-width: 0; flex-direction: column; gap: 4px; padding: 11px 13px; border: 1px solid var(--jt-border-soft); border-radius: 8px; background: var(--jt-surface-soft); }
+.preference-dialog-summary span { color: var(--jt-text-faint); font-size: 12px; }
+.preference-dialog-summary strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preference-table { width: 100%; max-width: 100%; }
+.preference-row-actions { display: flex; width: 100%; min-width: 0; flex-wrap: nowrap; gap: 4px; }
+.preference-row-actions .el-button { flex: 1 1 0; min-width: 0; margin-left: 0; padding-right: 7px; padding-left: 7px; }
 .quick-add-alert { margin-bottom: 16px; }
 .submission-mode-hint { width: 100%; }
 .danger-dropdown-item { color: var(--el-color-danger); }
@@ -1158,6 +1169,7 @@ select {
   .application-dialog .el-radio-group { display: flex; width: 100%; }
   .application-dialog .el-radio-button { flex: 1 1 0; min-width: 0; }
   .application-dialog .el-radio-button__inner { width: 100%; padding-right: 8px; padding-left: 8px; white-space: nowrap; }
+  .preference-dialog-summary { grid-template-columns: 1fr; }
 }
 
 .stat {

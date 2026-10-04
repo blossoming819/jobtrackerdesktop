@@ -1,4 +1,5 @@
 import http from './http'
+import axios from 'axios'
 import type { CandidateProfileResponse, CandidateProfileSummary, ExtensionPairing, InterviewNote, InterviewRecord, JobApplication, NoteItem, ProfileSnapshot, Reminder, ResumeParseHistory } from '../types'
 
 export const statusOptions = ['收藏', '待投递', '已投递', '笔试', '面试中', '一面', '二面', '三面', '四面', '主管面', 'HR 面', 'Offer', '淘汰']
@@ -24,6 +25,12 @@ export const resumeCategoryOptions = ['Java 简历', '算法简历', 'AI 简历'
 
 export const applicationApi = {
   page: (params: Record<string, unknown>) => http.get('/applications', { params }),
+  pageGroupedBySubmission: async (params: Record<string, unknown>) => {
+    const response = await axios.get('/api/applications/grouped-by-submission', { params, timeout: 15000 })
+    const data = response.data
+    if (data?.code !== 200) throw new Error(data?.message || '当前后端暂不支持按投递分组')
+    return data.data
+  },
   pageGroupedByCompany: (params: Record<string, unknown>) => http.get('/applications/grouped-by-company', { params }),
   statusOptions: () => http.get('/applications/status-options'),
   positionTypeOptions: () => http.get('/applications/position-type-options'),

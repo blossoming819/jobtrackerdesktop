@@ -11,6 +11,7 @@ import com.jobtracker.service.JobApplicationService;
 import com.jobtracker.service.ResumeService;
 import com.jobtracker.vo.ApplicationDetailVO;
 import com.jobtracker.vo.ApplicationCompanyGroupVO;
+import com.jobtracker.vo.ApplicationSubmissionVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
@@ -43,6 +44,11 @@ public class JobApplicationController {
     @GetMapping
     public Result<Page<JobApplication>> page(ApplicationQueryDTO query) {
         return Result.ok(jobApplicationService.pageApplications(query));
+    }
+
+    @GetMapping("/grouped-by-submission")
+    public Result<Page<ApplicationSubmissionVO>> pageGroupedBySubmission(ApplicationQueryDTO query) {
+        return Result.ok(jobApplicationService.pageApplicationSubmissions(query));
     }
 
     @GetMapping("/grouped-by-company")

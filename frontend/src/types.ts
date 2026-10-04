@@ -18,6 +18,8 @@ export interface JobApplication {
   appliedTime?: string
   submissionGroupId?: string
   preferenceOrder?: number
+  multiPreference?: boolean
+  preferences?: JobApplication[]
   resumeId?: number
   profileId?: string
   remark?: string

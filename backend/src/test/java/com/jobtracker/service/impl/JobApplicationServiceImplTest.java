@@ -9,6 +9,7 @@ import com.jobtracker.service.InterviewRecordService;
 import com.jobtracker.service.ReminderService;
 import com.jobtracker.service.ResumeService;
 import com.jobtracker.vo.ApplicationCompanyGroupVO;
+import com.jobtracker.vo.ApplicationSubmissionVO;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -22,6 +23,32 @@ import static org.mockito.Mockito.when;
 class JobApplicationServiceImplTest {
 
     @Test
+    void submissionPageCollapsesPreferencesButKeepsIndependentApplicationsSeparate() {
+        JobApplicationMapper mapper = mock(JobApplicationMapper.class);
+        JobApplication first = application(1L, "中国建设银行");
+        first.setSubmissionGroupId("ccb-2027");
+        first.setPreferenceOrder(1);
+        JobApplication second = application(2L, "中国建设银行");
+        second.setSubmissionGroupId("ccb-2027");
+        second.setPreferenceOrder(2);
+        JobApplication independent = application(3L, "中国建设银行");
+        independent.setSubmissionGroupId("independent-3");
+        when(mapper.selectList(any())).thenReturn(List.of(first, second, independent));
+        JobApplicationServiceImpl service = service(mapper);
+        ApplicationQueryDTO query = new ApplicationQueryDTO();
+        query.setPageNo(1L);
+        query.setPageSize(10L);
+
+        var result = service.pageApplicationSubmissions(query);
+
+        assertThat(result.getTotal()).isEqualTo(2);
+        ApplicationSubmissionVO submission = result.getRecords().get(0);
+        assertThat(submission.isMultiPreference()).isTrue();
+        assertThat(submission.getPreferences()).extracting(JobApplication::getId).containsExactly(1L, 2L);
+        assertThat(result.getRecords().get(1).isMultiPreference()).isFalse();
+    }
+
+    @Test
     void groupedPageKeepsEveryCompanyTogetherBeforePagination() {
         JobApplicationMapper mapper = mock(JobApplicationMapper.class);
         when(mapper.selectList(any())).thenReturn(List.of(
@@ -32,14 +59,7 @@ class JobApplicationServiceImplTest {
                 application(5L, "第三家公司"),
                 application(6L, "第三家公司")
         ));
-        JobApplicationServiceImpl service = new JobApplicationServiceImpl(
-                mock(InterviewRecordService.class),
-                mock(InterviewNoteService.class),
-                mock(ResumeService.class),
-                mock(ReminderService.class),
-                new ObjectMapper()
-        );
-        ReflectionTestUtils.setField(service, "baseMapper", mapper);
+        JobApplicationServiceImpl service = service(mapper);
         ApplicationQueryDTO query = new ApplicationQueryDTO();
         query.setPageNo(1L);
         query.setPageSize(2L);
@@ -54,6 +74,18 @@ class JobApplicationServiceImplTest {
         ApplicationCompanyGroupVO second = result.getRecords().get(1);
         assertThat(second.getCompanyName()).isEqualTo("Example Co");
         assertThat(second.getChildren()).extracting(JobApplication::getId).containsExactly(3L, 4L);
+    }
+
+    private JobApplicationServiceImpl service(JobApplicationMapper mapper) {
+        JobApplicationServiceImpl service = new JobApplicationServiceImpl(
+                mock(InterviewRecordService.class),
+                mock(InterviewNoteService.class),
+                mock(ResumeService.class),
+                mock(ReminderService.class),
+                new ObjectMapper()
+        );
+        ReflectionTestUtils.setField(service, "baseMapper", mapper);
+        return service;
     }
 
     private JobApplication application(Long id, String companyName) {

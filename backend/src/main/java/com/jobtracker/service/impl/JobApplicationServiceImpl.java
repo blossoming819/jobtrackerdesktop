@@ -19,7 +19,9 @@ import com.jobtracker.service.ReminderService;
 import com.jobtracker.service.ResumeService;
 import com.jobtracker.vo.ApplicationDetailVO;
 import com.jobtracker.vo.ApplicationCompanyGroupVO;
+import com.jobtracker.vo.ApplicationSubmissionVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -37,6 +39,10 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper, JobApplication> implements JobApplicationService {
+    private static final String EFFECTIVE_APPLIED_TIME_SQL = "COALESCE(applied_time, "
+            + "(SELECT MAX(sibling.applied_time) FROM job_application sibling "
+            + "WHERE sibling.submission_group_id = job_application.submission_group_id AND sibling.deleted = 0), "
+            + "updated_time)";
     private static final List<String> DEFAULT_STATUS_OPTIONS = List.of(
             "收藏", "待投递", "已投递", "笔试", "面试中", "一面", "二面", "三面", "四面", "主管面", "HR 面", "Offer", "淘汰"
     );
@@ -61,6 +67,18 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
     }
 
     @Override
+    public Page<ApplicationSubmissionVO> pageApplicationSubmissions(ApplicationQueryDTO query) {
+        List<ApplicationSubmissionVO> submissions = groupSubmissionApplications(list(applicationQuery(query)));
+        long pageNo = Math.max(query.getPageNo(), 1L);
+        long pageSize = Math.max(query.getPageSize(), 1L);
+        int fromIndex = (int) Math.min((pageNo - 1) * pageSize, submissions.size());
+        int toIndex = (int) Math.min(fromIndex + pageSize, submissions.size());
+        Page<ApplicationSubmissionVO> result = new Page<>(pageNo, pageSize, submissions.size());
+        result.setRecords(submissions.subList(fromIndex, toIndex));
+        return result;
+    }
+
+    @Override
     public Page<ApplicationCompanyGroupVO> pageApplicationCompanies(ApplicationQueryDTO query) {
         List<JobApplication> applications = list(applicationQuery(query));
         Map<String, ApplicationCompanyGroupVO> groups = new LinkedHashMap<>();
@@ -76,12 +94,40 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
         }
 
         List<ApplicationCompanyGroupVO> allGroups = new ArrayList<>(groups.values());
+        allGroups.forEach(group -> group.setChildren(new ArrayList<>(groupSubmissionApplications(group.getChildren()))));
         long pageNo = Math.max(query.getPageNo(), 1L);
         long pageSize = Math.max(query.getPageSize(), 1L);
         int fromIndex = (int) Math.min((pageNo - 1) * pageSize, allGroups.size());
         int toIndex = (int) Math.min(fromIndex + pageSize, allGroups.size());
         Page<ApplicationCompanyGroupVO> result = new Page<>(pageNo, pageSize, allGroups.size());
         result.setRecords(allGroups.subList(fromIndex, toIndex));
+        return result;
+    }
+
+    private List<ApplicationSubmissionVO> groupSubmissionApplications(List<JobApplication> applications) {
+        Map<String, List<JobApplication>> grouped = new LinkedHashMap<>();
+        for (JobApplication application : applications) {
+            boolean preference = StringUtils.hasText(application.getSubmissionGroupId())
+                    && application.getPreferenceOrder() != null;
+            String key = preference
+                    ? "preference:" + application.getSubmissionGroupId().trim()
+                    : "application:" + application.getId();
+            grouped.computeIfAbsent(key, ignored -> new ArrayList<>()).add(application);
+        }
+
+        List<ApplicationSubmissionVO> result = new ArrayList<>();
+        for (List<JobApplication> items : grouped.values()) {
+            JobApplication representative = items.get(0);
+            ApplicationSubmissionVO submission = new ApplicationSubmissionVO();
+            BeanUtils.copyProperties(representative, submission);
+            items.sort((left, right) -> Integer.compare(
+                    left.getPreferenceOrder() == null ? Integer.MAX_VALUE : left.getPreferenceOrder(),
+                    right.getPreferenceOrder() == null ? Integer.MAX_VALUE : right.getPreferenceOrder()
+            ));
+            submission.setMultiPreference(items.size() > 1);
+            submission.setPreferences(new ArrayList<>(items));
+            result.add(submission);
+        }
         return result;
     }
 
@@ -116,8 +162,8 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
                     .orderByDesc("updated_time");
             return;
         }
-        wrapper.orderByAsc("applied_time IS NULL")
-                .orderBy(true, asc, "applied_time")
+        wrapper.orderBy(true, asc, EFFECTIVE_APPLIED_TIME_SQL)
+                .orderByAsc("CASE WHEN preference_order IS NULL THEN 0 ELSE preference_order END")
                 .orderByDesc("updated_time");
     }
 
@@ -214,6 +260,12 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
                 .orElse(0);
         application.setSubmissionGroupId(groupId);
         application.setPreferenceOrder(Math.max(maxOrder + 1, 2));
+        if (application.getAppliedTime() == null) {
+            application.setAppliedTime(source.getAppliedTime());
+        }
+        if (!StringUtils.hasText(application.getCurrentStatus())) {
+            application.setCurrentStatus(source.getCurrentStatus());
+        }
         save(application);
         return application;
     }

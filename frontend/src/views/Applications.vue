@@ -40,7 +40,7 @@
       <el-button @click="exitBatchMode">完成</el-button>
     </div>
 
-    <el-table class="applications-table" ref="applicationTableRef" :data="displayRows" row-key="rowKey" :row-class-name="applicationRowClass" @selection-change="handleSelectionChange">
+    <el-table class="applications-table" ref="applicationTableRef" :data="displayRows" row-key="rowKey" :row-class-name="applicationRowClass" @selection-change="handleSelectionChange" @row-click="handleRowClick">
       <el-table-column v-if="batchMode" type="selection" width="48" :selectable="selectableRow" />
       <el-table-column prop="companyName" label="公司" min-width="200">
         <template #default="{ row }">
@@ -57,9 +57,13 @@
       <el-table-column prop="positionName" label="岗位" min-width="180">
         <template #default="{ row }">
           <div v-if="row.isGroup" class="company-group-summary">
-            <el-tag size="small" class="company-count">{{ row.groupChildren?.length || 0 }} 个岗位</el-tag>
+            <el-tag size="small" class="company-count">{{ groupPositionCount(row.groupChildren) }} 个岗位</el-tag>
             <span>同公司投递合集</span>
           </div>
+          <button v-else-if="row.multiPreference" class="submission-summary-button" @click.stop="openPreferenceDialog(row)">
+            <span>多志愿投递</span>
+            <el-tag class="preference-tag" size="small">{{ row.preferences?.length || 0 }} 个志愿</el-tag>
+          </button>
           <div v-else class="position-cell">
             <el-tooltip :content="row.positionName" placement="top" :disabled="!row.positionName">
               <span class="table-ellipsis">{{ row.positionName }}</span>
@@ -105,10 +109,10 @@
       <el-table-column label="操作" width="180">
         <template #default="{ row }">
           <div v-if="!row.isGroup" class="application-row-actions">
-            <el-button size="small" @click="$router.push(`/application/${row.id}`)">详情</el-button>
-            <el-button size="small" @click="openEdit(row)">编辑</el-button>
+            <el-button size="small" @click.stop="row.multiPreference ? openPreferenceDialog(row) : $router.push(`/application/${row.id}`)">{{ row.multiPreference ? '志愿' : '详情' }}</el-button>
+            <el-button size="small" @click.stop="row.multiPreference ? openQuickAdd(preferenceSource(row), true) : openEdit(row)">{{ row.multiPreference ? '加志愿' : '编辑' }}</el-button>
             <el-dropdown trigger="click" @command="handleRowCommand($event, row)">
-              <el-button size="small">更多</el-button>
+              <el-button size="small" @click.stop>更多</el-button>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="new-position">同公司新增岗位</el-dropdown-item>
@@ -234,6 +238,38 @@
       <el-button type="primary" @click="save">保存</el-button>
     </template>
   </el-dialog>
+
+  <el-dialog v-model="preferenceDialogVisible" title="同次网申志愿" width="min(1040px, 94vw)" class="preference-dialog">
+    <div class="preference-dialog-summary">
+      <div><span>公司</span><strong>{{ selectedSubmission?.companyName }}</strong></div>
+      <div><span>投递批次</span><strong>{{ selectedSubmission?.recruitmentType || '-' }}</strong></div>
+      <div><span>志愿数量</span><strong>{{ preferenceRows.length }}</strong></div>
+    </div>
+    <el-table :data="preferenceRows" class="preference-table">
+      <el-table-column label="志愿" width="76">
+        <template #default="{ row }"><el-tag size="small">第 {{ row.preferenceOrder }} 志愿</el-tag></template>
+      </el-table-column>
+      <el-table-column prop="positionName" label="岗位" min-width="190" show-overflow-tooltip />
+      <el-table-column prop="positionType" label="岗位类别" min-width="130" show-overflow-tooltip />
+      <el-table-column prop="resumeCategory" label="简历类别" min-width="120" show-overflow-tooltip />
+      <el-table-column prop="currentStatus" label="状态" width="100" />
+      <el-table-column prop="appliedTime" label="投递时间" width="150">
+        <template #default="{ row }">{{ formatDate(row.appliedTime) || '未填写' }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="150">
+        <template #default="{ row }">
+          <div class="preference-row-actions">
+            <el-button size="small" @click="$router.push(`/application/${row.id}`)">详情</el-button>
+            <el-button size="small" @click="editPreference(row)">编辑</el-button>
+          </div>
+        </template>
+      </el-table-column>
+    </el-table>
+    <template #footer>
+      <el-button @click="preferenceDialogVisible = false">关闭</el-button>
+      <el-button type="primary" @click="addPreferenceFromDialog">添加下一志愿</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -268,6 +304,8 @@ const namingTemplate = ref('company')
 const resumeAliasAuto = ref(true)
 const quickAddSourceId = ref<number>()
 const submissionMode = ref<'independent' | 'preference'>('independent')
+const preferenceDialogVisible = ref(false)
+const selectedSubmission = ref<ApplicationRow>()
 const namingSettings = reactive({ resumeOwnerName: '', resumeOwnerSchool: '', resumeGraduationYear: '', resumeCustomNamingTemplate: '', resumeCustomNamingTemplates: '' })
 const namingTemplates = computed(() => [
   ...resumeNamingPresets,
@@ -302,10 +340,12 @@ const dialogTitle = computed(() => {
   if (quickAddSourceId.value) return '同公司新增岗位'
   return '新增岗位'
 })
+const preferenceRows = computed(() => [...(selectedSubmission.value?.preferences || [])]
+  .sort((left, right) => (left.preferenceOrder || 0) - (right.preferenceOrder || 0)))
 
 const displayRows = computed<ApplicationRow[]>(() => {
   if (!groupByCompany.value) {
-    return rows.value.map(row => ({ ...row, rowKey: `job-${row.id}` }))
+    return rows.value.map(row => ({ ...row, rowKey: submissionRowKey(row) }))
   }
   return rows.value.flatMap((group, index) => {
     const rowKey = group.rowKey || `company-${query.pageNo}-${index}`
@@ -322,7 +362,7 @@ const displayRows = computed<ApplicationRow[]>(() => {
     } as ApplicationRow
     return [
       groupRow,
-      ...groupChildren.map(row => ({ ...row, rowKey: `job-${row.id}` }))
+      ...groupChildren.map(row => ({ ...row, rowKey: submissionRowKey(row) }))
     ]
   })
 })
@@ -403,11 +443,12 @@ async function load() {
   const grouped = groupByCompany.value
   const page: any = grouped
     ? await applicationApi.pageGroupedByCompany(queryParams())
-    : await applicationApi.page(queryParams())
+    : await loadSubmissionPage()
   if (requestId !== loadRequestId || grouped !== groupByCompany.value) return
   rows.value = grouped
     ? page.records.map((group: ApplicationRow, index: number) => ({
         ...group,
+        children: collapseSubmissions(group.children || []),
         rowKey: `company-${query.pageNo}-${index}-${group.companyName || 'empty'}`
       }))
     : page.records
@@ -415,9 +456,59 @@ async function load() {
   clearSelection()
 }
 
+async function loadSubmissionPage() {
+  try {
+    return await applicationApi.pageGroupedBySubmission(queryParams()) as any
+  } catch {
+    const rawPage: any = await applicationApi.page({ ...queryParams(), pageNo: 1, pageSize: 10000 })
+    const submissions = collapseSubmissions(rawPage.records || [])
+    const start = (query.pageNo - 1) * query.pageSize
+    return {
+      records: submissions.slice(start, start + query.pageSize),
+      total: submissions.length
+    }
+  }
+}
+
+function collapseSubmissions(applications: ApplicationRow[]) {
+  const grouped = new Map<string, ApplicationRow[]>()
+  applications.forEach(application => {
+    const sourceItems = application.multiPreference && application.preferences?.length
+      ? application.preferences
+      : [application]
+    sourceItems.forEach(item => {
+      const isPreference = Boolean(item.submissionGroupId && item.preferenceOrder)
+      const key = isPreference ? `preference:${item.submissionGroupId}` : `application:${item.id}`
+      const items = grouped.get(key) || []
+      items.push(item)
+      grouped.set(key, items)
+    })
+  })
+  return Array.from(grouped.values()).map(items => {
+    const preferences = [...items].sort((left, right) => (left.preferenceOrder || 0) - (right.preferenceOrder || 0))
+    return {
+      ...items[0],
+      multiPreference: items.length > 1,
+      preferences
+    }
+  })
+}
+
+function submissionRowKey(row: ApplicationRow) {
+  return row.multiPreference && row.submissionGroupId
+    ? `submission-${row.submissionGroupId}`
+    : `job-${row.id}`
+}
+
+function groupPositionCount(groupChildren?: ApplicationRow[]) {
+  return (groupChildren || []).reduce((count, row) => count + (row.preferences?.length || 1), 0)
+}
+
 function applicationRowClass({ row }: { row: ApplicationRow }) {
   if (row.isGroup) return 'company-group-row'
-  return groupByCompany.value ? 'company-child-row' : ''
+  return [groupByCompany.value ? 'company-child-row' : '', row.multiPreference ? 'submission-group-row' : '']
+    .filter(Boolean)
+    .join(' ')
 }
 
 async function loadResumes() {
@@ -537,7 +628,10 @@ function handlePageSizeChange() {
 }
 
 function selectedIds() {
-  return selectedRows.value.map((row) => row.id).filter((id): id is number => typeof id === 'number')
+  return Array.from(new Set(selectedRows.value.flatMap((row) => row.multiPreference
+    ? (row.preferences || []).map(item => item.id)
+    : [row.id]
+  ).filter((id): id is number => typeof id === 'number')))
 }
 
 async function batchRemove() {
@@ -654,6 +748,34 @@ function openEdit(row: JobApplication) {
   dialogVisible.value = true
 }
 
+function openPreferenceDialog(row: ApplicationRow) {
+  if (!row.multiPreference) return
+  selectedSubmission.value = row
+  preferenceDialogVisible.value = true
+}
+
+function handleRowClick(row: ApplicationRow) {
+  if (row.multiPreference) openPreferenceDialog(row)
+}
+
+function preferenceSource(row: ApplicationRow) {
+  const preferences = [...(row.preferences || [])]
+    .sort((left, right) => (left.preferenceOrder || 0) - (right.preferenceOrder || 0))
+  return preferences[preferences.length - 1] || row
+}
+
+function editPreference(row: JobApplication) {
+  preferenceDialogVisible.value = false
+  openEdit(row)
+}
+
+function addPreferenceFromDialog() {
+  if (!selectedSubmission.value) return
+  const source = preferenceSource(selectedSubmission.value)
+  preferenceDialogVisible.value = false
+  openQuickAdd(source, true)
+}
+
 function resetForm() {
   Object.keys(form).forEach(key => delete (form as any)[key])
   Object.assign(form, emptyForm())
@@ -670,7 +792,8 @@ function openQuickAdd(row: JobApplication, sameSubmission: boolean) {
     source: row.source,
     resumeId: row.resumeId,
     profileId: row.profileId,
-    currentStatus: '待投递'
+    currentStatus: sameSubmission ? normalizedCurrentStatus(row) : '待投递',
+    appliedTime: sameSubmission ? row.appliedTime : undefined
   })
   quickAddSourceId.value = row.id
   submissionMode.value = sameSubmission ? 'preference' : 'independent'
@@ -682,9 +805,13 @@ function openQuickAdd(row: JobApplication, sameSubmission: boolean) {
 }
 
 function handleRowCommand(command: string, row: JobApplication) {
-  if (command === 'new-position') openQuickAdd(row, false)
-  if (command === 'next-preference') openQuickAdd(row, true)
-  if (command === 'delete' && row.id) remove(row.id)
+  const applicationRow = row as ApplicationRow
+  const source = preferenceSource(applicationRow)
+  if (command === 'new-position') openQuickAdd(source, false)
+  if (command === 'next-preference') openQuickAdd(source, true)
+  if (command === 'delete') {
+    applicationRow.multiPreference ? removeSubmission(applicationRow) : (row.id && remove(row.id))
+  }
 }
 
 function handleResumeChange(resumeId?: number) {
@@ -758,6 +885,18 @@ async function remove(id: number) {
     return
   }
   await applicationApi.remove(id)
+  await load()
+}
+
+async function removeSubmission(row: ApplicationRow) {
+  const ids = (row.preferences || []).map(item => item.id).filter((id): id is number => typeof id === 'number')
+  if (!ids.length) return
+  try {
+    await ElMessageBox.confirm(`确认删除这次投递及其 ${ids.length} 个志愿吗？此操作无法恢复。`, '删除整次投递', { type: 'warning' })
+  } catch {
+    return
+  }
+  await applicationApi.batchRemove(ids)
   await load()
 }
 </script>
