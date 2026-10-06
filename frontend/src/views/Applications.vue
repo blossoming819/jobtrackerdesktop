@@ -175,7 +175,7 @@
           />
           <el-button @click="openOrganizationDialog">新建组织节点</el-button>
           <el-button :disabled="!form.organizationUnitId" @click="openEditOrganizationDialog">编辑当前组织</el-button>
-          <el-button @click="organizationManagerVisible = true">管理组织节点</el-button>
+          <el-button :disabled="!form.organizationUnitId" @click="openOrganizationManager(form.organizationUnitId)">管理组织节点</el-button>
         </div>
         <div v-if="form.organizationPathSnapshot" class="organization-form-summary">
           <span>完整路径：{{ form.organizationPathSnapshot }}</span>
@@ -303,18 +303,18 @@
   </el-dialog>
 
   <el-dialog v-model="submissionDialogVisible" title="编辑本次网申" width="min(820px, 92vw)" class="application-dialog">
-    <el-alert class="quick-add-alert" type="info" :closable="false" show-icon title="这里只维护本次网申的招聘企业、组织归属、批次和备注。工作地点、来源、投递时间及简历、JD、状态均属于具体志愿，不会保存或复用。" />
+    <el-alert class="quick-add-alert" type="info" :closable="false" show-icon title="父记录归属由你手动指定为组织树中的任一节点，不会按企业主体标记自动推导。工作地点、来源、投递时间及简历、JD、状态均属于具体志愿，不会保存或复用。" />
     <el-form :model="submissionForm" label-width="110px">
       <el-row :gutter="12">
-        <el-col :span="12"><el-form-item label="招聘企业"><el-input v-model="submissionForm.companyName" :disabled="Boolean(submissionForm.organizationUnitId)" placeholder="简单公司可直接填写" /><div v-if="submissionForm.organizationUnitId" class="form-item-hint">由组织归属自动确定；要修改名称，请编辑当前组织或选择其他组织。</div></el-form-item></el-col>
+        <el-col :span="12"><el-form-item label="父记录名称"><el-input :model-value="submissionForm.companyName || '请先选择父记录归属'" readonly /><div class="form-item-hint">使用你在下方选定组织节点的名称；要修改名称，请编辑该组织节点或重新选择。</div></el-form-item></el-col>
         <el-col :span="12"><el-form-item label="投递批次"><el-select v-model="submissionForm.recruitmentType" filterable allow-create default-first-option clearable><el-option v-for="item in recruitmentTypeOptions" :key="item" :label="item" :value="item" /></el-select></el-form-item></el-col>
       </el-row>
-      <el-form-item label="组织归属">
+      <el-form-item label="父记录归属" required>
         <div class="organization-picker-row">
-          <el-cascader v-model="submissionForm.organizationUnitId" :options="organizationTree" :props="organizationCascaderProps" clearable filterable placeholder="复杂企业可选择集团 / 子公司 / 部门" @change="handleSubmissionOrganizationChange" />
+          <el-cascader v-model="submissionForm.organizationUnitId" :options="organizationTree" :props="organizationCascaderProps" clearable filterable placeholder="搜索并选择集团 / 子公司 / 分公司 / 部门" @change="handleSubmissionOrganizationChange" />
           <el-button @click="openOrganizationDialog('submission')">新建组织节点</el-button>
           <el-button :disabled="!submissionForm.organizationUnitId" @click="openEditSubmissionOrganizationDialog">编辑当前组织</el-button>
-          <el-button @click="organizationManagerVisible = true">管理组织节点</el-button>
+          <el-button :disabled="!submissionForm.organizationUnitId" @click="openOrganizationManager(submissionForm.organizationUnitId)">管理组织节点</el-button>
         </div>
         <div v-if="submissionForm.organizationPathSnapshot" class="organization-form-summary"><span>完整路径：{{ submissionForm.organizationPathSnapshot }}</span><span>招聘企业：{{ submissionForm.employerNameSnapshot || submissionForm.companyName }}</span><span>所属集团：{{ submissionForm.groupNameSnapshot || submissionForm.companyName }}</span></div>
         <div v-else class="form-item-hint">不选择时会把公司名称自动保存为一级公司节点。</div>
@@ -348,9 +348,10 @@
     </template>
   </el-dialog>
 
-  <el-dialog v-model="organizationManagerVisible" title="组织节点管理" width="min(980px, 96vw)" class="organization-manager-dialog">
+  <el-dialog v-model="organizationManagerVisible" :title="organizationManagerTitle" width="min(980px, 96vw)" class="organization-manager-dialog">
     <el-alert title="节点只能在没有下级组织、且没有投递岗位或网申父记录引用时删除。请先删除或改绑关联记录，并从最末级节点开始清理。" type="warning" :closable="false" show-icon />
-    <el-table :data="flatOrganizationNodes" class="organization-manager-table" max-height="520">
+    <el-input v-model="organizationSearchKeyword" clearable placeholder="在当前组织树内搜索名称、别名或完整路径" class="organization-manager-search" />
+    <el-table :data="managedOrganizationNodes" class="organization-manager-table" max-height="520">
       <el-table-column prop="fullPath" label="完整路径" min-width="340" show-overflow-tooltip />
       <el-table-column prop="unitType" label="类型" width="120" />
       <el-table-column label="招聘企业" width="120"><template #default="{ row }">{{ row.companyEntity ? '是' : '否' }}</template></el-table-column>
@@ -389,6 +390,8 @@ const groupOptions = [
 const organizationTree = ref<OrganizationUnit[]>([])
 const organizationDialogVisible = ref(false)
 const organizationManagerVisible = ref(false)
+const organizationManagerRootId = ref<number>()
+const organizationSearchKeyword = ref('')
 const organizationEditingId = ref<number>()
 const organizationDialogTarget = ref<'application' | 'submission'>('application')
 const organizationDraft = reactive<Partial<OrganizationUnit>>({ name: '', unitType: 'COMPANY', companyEntity: true, active: true })
@@ -458,14 +461,20 @@ const dialogTitle = computed(() => {
 const organizationDialogTitle = computed(() => organizationEditingId.value ? '编辑组织节点' : '新建组织节点')
 const preferenceRows = computed(() => [...(selectedSubmission.value?.preferences || [])]
   .sort((left, right) => (left.preferenceOrder || 0) - (right.preferenceOrder || 0)))
-const flatOrganizationNodes = computed(() => {
+const managedOrganizationRoot = computed(() => organizationTree.value.find(item => item.id === organizationManagerRootId.value))
+const organizationManagerTitle = computed(() => managedOrganizationRoot.value
+  ? `组织节点管理 · ${managedOrganizationRoot.value.name}`
+  : '组织节点管理')
+const managedOrganizationNodes = computed(() => {
   const nodes: OrganizationUnit[] = []
   const visit = (items: OrganizationUnit[]) => items.forEach(item => {
     nodes.push(item)
     visit(item.children || [])
   })
-  visit(organizationTree.value)
-  return nodes
+  if (managedOrganizationRoot.value) visit([managedOrganizationRoot.value])
+  const keyword = organizationSearchKeyword.value.trim().toLowerCase()
+  if (!keyword) return nodes
+  return nodes.filter(item => [item.name, item.aliases, item.fullPath].some(value => value?.toLowerCase().includes(keyword)))
 })
 
 const displayRows = computed<ApplicationRow[]>(() => {
@@ -703,6 +712,17 @@ function openOrganizationDialog(target: 'application' | 'submission' = 'applicat
     active: true
   })
   organizationDialogVisible.value = true
+}
+
+function openOrganizationManager(nodeId?: number) {
+  const path = findOrganizationContext(nodeId)
+  if (!path?.length) {
+    ElMessage.warning('请先选择一个组织节点，再管理其所在组织树')
+    return
+  }
+  organizationManagerRootId.value = path[0].id
+  organizationSearchKeyword.value = ''
+  organizationManagerVisible.value = true
 }
 
 function openEditOrganizationDialog() {
@@ -1044,8 +1064,8 @@ function openSubmissionEditor() {
 
 async function saveSubmission() {
   if (!editingSubmissionId.value) return
-  if (!submissionForm.companyName?.trim()) {
-    ElMessage.warning('请填写公司名称')
+  if (!submissionForm.organizationUnitId) {
+    ElMessage.warning('请指定父记录归属')
     return
   }
   const saved = await applicationApi.updateSubmission(editingSubmissionId.value, submissionForm)

@@ -40,20 +40,8 @@ public class ApplicationSubmissionServiceImpl extends ServiceImpl<ApplicationSub
     public ApplicationSubmission updateSubmission(String id, ApplicationSubmission changes) {
         ApplicationSubmission existing = getById(id);
         if (existing == null) throw new IllegalArgumentException("本次网申父记录不存在");
-        if (!StringUtils.hasText(changes.getCompanyName())) throw new IllegalArgumentException("请填写公司名称");
-
-        JobApplication organizationSource = new JobApplication();
-        organizationSource.setCompanyName(changes.getCompanyName());
-        organizationSource.setOrganizationUnitId(changes.getOrganizationUnitId());
-        organizationUnitService.applyOrganization(organizationSource);
-
-        existing.setCompanyName(organizationSource.getCompanyName());
-        existing.setSubmissionOrganizationId(organizationSource.getSubmissionOrganizationId());
-        existing.setEmployerOrganizationId(organizationSource.getEmployerOrganizationId());
-        existing.setOrganizationUnitId(organizationSource.getOrganizationUnitId());
-        existing.setOrganizationPathSnapshot(organizationSource.getOrganizationPathSnapshot());
-        existing.setEmployerNameSnapshot(organizationSource.getEmployerNameSnapshot());
-        existing.setGroupNameSnapshot(organizationSource.getGroupNameSnapshot());
+        existing.setOrganizationUnitId(changes.getOrganizationUnitId());
+        organizationUnitService.applySubmissionOrganization(existing);
         existing.setRecruitmentType(changes.getRecruitmentType());
         // 地点、来源和投递时间属于具体志愿，父记录不保留也不再向新志愿复制。
         existing.setWorkLocation(null);

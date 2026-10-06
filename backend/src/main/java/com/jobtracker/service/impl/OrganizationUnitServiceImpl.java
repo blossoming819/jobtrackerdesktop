@@ -183,6 +183,26 @@ public class OrganizationUnitServiceImpl extends ServiceImpl<OrganizationUnitMap
     }
 
     @Override
+    public void applySubmissionOrganization(ApplicationSubmission submission) {
+        if (submission.getOrganizationUnitId() == null) {
+            throw new IllegalArgumentException("请为本次网申选择父记录归属");
+        }
+        List<OrganizationUnit> path = resolvePath(submission.getOrganizationUnitId());
+        if (path.isEmpty() || path.stream().anyMatch(item -> !Boolean.TRUE.equals(item.getActive()))) {
+            throw new IllegalArgumentException("选择的父记录归属不存在或已停用");
+        }
+        OrganizationUnit root = path.get(0);
+        // 父记录由用户指定节点，而非按企业主体标记自动向上推导。
+        OrganizationUnit selected = path.get(path.size() - 1);
+        submission.setSubmissionOrganizationId(root.getId());
+        submission.setEmployerOrganizationId(selected.getId());
+        submission.setOrganizationPathSnapshot(path.stream().map(OrganizationUnit::getName).reduce((a, b) -> a + PATH_SEPARATOR + b).orElse(""));
+        submission.setEmployerNameSnapshot(selected.getName());
+        submission.setGroupNameSnapshot(root.getName());
+        submission.setCompanyName(selected.getName());
+    }
+
+    @Override
     public List<Long> searchIds(String keyword) {
         if (!StringUtils.hasText(keyword)) return List.of();
         return lambdaQuery()
