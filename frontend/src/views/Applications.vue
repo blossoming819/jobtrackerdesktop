@@ -303,10 +303,10 @@
   </el-dialog>
 
   <el-dialog v-model="submissionDialogVisible" title="编辑本次网申" width="min(820px, 92vw)" class="application-dialog">
-    <el-alert class="quick-add-alert" type="info" :closable="false" show-icon title="这里维护本次网申的公共信息。已存在的各志愿保留自己的岗位、简历、JD 和状态；以后新增志愿会复用这里的信息。" />
+    <el-alert class="quick-add-alert" type="info" :closable="false" show-icon title="这里只维护本次网申的招聘企业、组织归属、批次和备注。工作地点、来源、投递时间及简历、JD、状态均属于具体志愿，不会保存或复用。" />
     <el-form :model="submissionForm" label-width="110px">
       <el-row :gutter="12">
-        <el-col :span="12"><el-form-item label="公司名称"><el-input v-model="submissionForm.companyName" :disabled="Boolean(submissionForm.organizationUnitId)" placeholder="简单公司可直接填写" /></el-form-item></el-col>
+        <el-col :span="12"><el-form-item label="招聘企业"><el-input v-model="submissionForm.companyName" :disabled="Boolean(submissionForm.organizationUnitId)" placeholder="简单公司可直接填写" /><div v-if="submissionForm.organizationUnitId" class="form-item-hint">由组织归属自动确定；要修改名称，请编辑当前组织或选择其他组织。</div></el-form-item></el-col>
         <el-col :span="12"><el-form-item label="投递批次"><el-select v-model="submissionForm.recruitmentType" filterable allow-create default-first-option clearable><el-option v-for="item in recruitmentTypeOptions" :key="item" :label="item" :value="item" /></el-select></el-form-item></el-col>
       </el-row>
       <el-form-item label="组织归属">
@@ -319,8 +319,6 @@
         <div v-if="submissionForm.organizationPathSnapshot" class="organization-form-summary"><span>完整路径：{{ submissionForm.organizationPathSnapshot }}</span><span>招聘企业：{{ submissionForm.employerNameSnapshot || submissionForm.companyName }}</span><span>所属集团：{{ submissionForm.groupNameSnapshot || submissionForm.companyName }}</span></div>
         <div v-else class="form-item-hint">不选择时会把公司名称自动保存为一级公司节点。</div>
       </el-form-item>
-      <el-row :gutter="12"><el-col :span="12"><el-form-item label="工作地点"><el-input v-model="submissionForm.workLocation" /></el-form-item></el-col><el-col :span="12"><el-form-item label="投递来源"><el-input v-model="submissionForm.source" /></el-form-item></el-col></el-row>
-      <el-form-item label="投递时间"><el-date-picker v-model="submissionForm.appliedTime" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" /></el-form-item>
       <el-form-item label="父记录备注"><el-input v-model="submissionForm.remark" type="textarea" :rows="3" placeholder="仅记录本次网申的公共说明" /></el-form-item>
     </el-form>
     <template #footer><el-button @click="submissionDialogVisible = false">取消</el-button><el-button type="primary" @click="saveSubmission">保存父记录</el-button></template>
@@ -1032,9 +1030,6 @@ function openSubmissionEditor() {
   Object.assign(submissionForm, {
     companyName: row.companyName || '',
     recruitmentType: row.recruitmentType,
-    workLocation: row.workLocation,
-    source: row.source,
-    appliedTime: row.appliedTime,
     remark: row.remark,
     submissionOrganizationId: row.submissionOrganizationId,
     employerOrganizationId: row.employerOrganizationId,
@@ -1101,18 +1096,19 @@ function openQuickAdd(row: JobApplication, sameSubmission: boolean) {
     employerNameSnapshot: row.employerNameSnapshot,
     groupNameSnapshot: row.groupNameSnapshot,
     recruitmentType: row.recruitmentType,
+    currentStatus: '待投递'
+  })
+  if (!sameSubmission) Object.assign(form, {
     resumeCategory: row.resumeCategory,
     workLocation: row.workLocation,
     source: row.source,
     resumeId: row.resumeId,
-    profileId: row.profileId,
-    currentStatus: sameSubmission ? normalizedCurrentStatus(row) : '待投递',
-    appliedTime: sameSubmission ? row.appliedTime : undefined
+    profileId: row.profileId
   })
   quickAddSourceId.value = row.id
   submissionMode.value = sameSubmission ? 'preference' : 'independent'
   formPositionTypes.value = []
-  formResumeCategories.value = splitMultiValue(row.resumeCategory)
+  formResumeCategories.value = sameSubmission ? [] : splitMultiValue(row.resumeCategory)
   resumeAliasAuto.value = true
   regenerateResumeAlias()
   dialogVisible.value = true
@@ -1130,10 +1126,7 @@ function openPreferenceFromParent(row: ApplicationRow) {
     employerNameSnapshot: row.employerNameSnapshot,
     groupNameSnapshot: row.groupNameSnapshot,
     recruitmentType: row.recruitmentType,
-    workLocation: row.workLocation,
-    source: row.source,
-    currentStatus: '待投递',
-    appliedTime: row.appliedTime
+    currentStatus: '待投递'
   })
   quickAddSourceId.value = undefined
   parentSubmissionId.value = row.submissionGroupId

@@ -55,9 +55,10 @@ public class ApplicationSubmissionServiceImpl extends ServiceImpl<ApplicationSub
         existing.setEmployerNameSnapshot(organizationSource.getEmployerNameSnapshot());
         existing.setGroupNameSnapshot(organizationSource.getGroupNameSnapshot());
         existing.setRecruitmentType(changes.getRecruitmentType());
-        existing.setWorkLocation(changes.getWorkLocation());
-        existing.setSource(changes.getSource());
-        existing.setAppliedTime(changes.getAppliedTime());
+        // 地点、来源和投递时间属于具体志愿，父记录不保留也不再向新志愿复制。
+        existing.setWorkLocation(null);
+        existing.setSource(null);
+        existing.setAppliedTime(null);
         existing.setRemark(changes.getRemark());
         updateById(existing);
         return existing;
@@ -66,9 +67,9 @@ public class ApplicationSubmissionServiceImpl extends ServiceImpl<ApplicationSub
     private void copySharedFields(JobApplication application, ApplicationSubmission submission) {
         submission.setCompanyName(application.getCompanyName());
         submission.setRecruitmentType(application.getRecruitmentType());
-        submission.setWorkLocation(application.getWorkLocation());
-        submission.setSource(application.getSource());
-        submission.setAppliedTime(application.getAppliedTime());
+        submission.setWorkLocation(null);
+        submission.setSource(null);
+        submission.setAppliedTime(null);
         submission.setSubmissionOrganizationId(application.getSubmissionOrganizationId());
         submission.setEmployerOrganizationId(application.getEmployerOrganizationId());
         submission.setOrganizationUnitId(application.getOrganizationUnitId());
@@ -82,9 +83,6 @@ public class ApplicationSubmissionServiceImpl extends ServiceImpl<ApplicationSub
     public void applyDefaults(ApplicationSubmission submission, JobApplication application) {
         if (!StringUtils.hasText(application.getCompanyName())) application.setCompanyName(submission.getCompanyName());
         if (!StringUtils.hasText(application.getRecruitmentType())) application.setRecruitmentType(submission.getRecruitmentType());
-        if (!StringUtils.hasText(application.getWorkLocation())) application.setWorkLocation(submission.getWorkLocation());
-        if (!StringUtils.hasText(application.getSource())) application.setSource(submission.getSource());
-        if (application.getAppliedTime() == null) application.setAppliedTime(submission.getAppliedTime());
         if (application.getOrganizationUnitId() == null) {
             application.setSubmissionOrganizationId(submission.getSubmissionOrganizationId());
             application.setEmployerOrganizationId(submission.getEmployerOrganizationId());
