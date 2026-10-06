@@ -346,6 +346,27 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
 
     @Override
     @Transactional
+    public void reorderPreferences(String submissionId, List<Long> ids) {
+        if (!StringUtils.hasText(submissionId)) throw new IllegalArgumentException("投递父记录不存在");
+        List<JobApplication> preferences = lambdaQuery()
+                .eq(JobApplication::getSubmissionGroupId, submissionId)
+                .list();
+        Set<Long> expectedIds = preferences.stream().map(JobApplication::getId).collect(java.util.stream.Collectors.toSet());
+        Set<Long> requestedIds = ids == null ? Set.of() : new LinkedHashSet<>(ids);
+        if (preferences.size() < 2 || ids == null || ids.size() != requestedIds.size() || !expectedIds.equals(requestedIds)) {
+            throw new IllegalArgumentException("志愿顺序已变化，请刷新后重试");
+        }
+        Map<Long, JobApplication> byId = preferences.stream()
+                .collect(java.util.stream.Collectors.toMap(JobApplication::getId, item -> item));
+        for (int index = 0; index < ids.size(); index++) {
+            JobApplication preference = byId.get(ids.get(index));
+            preference.setPreferenceOrder(index + 1);
+        }
+        updateBatchById(preferences);
+    }
+
+    @Override
+    @Transactional
     public JobApplication updateApplication(JobApplication application) {
         if (application.getId() == null || getById(application.getId()) == null) {
             throw new IllegalArgumentException("投递记录不存在");

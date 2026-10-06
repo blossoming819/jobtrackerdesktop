@@ -39,6 +39,7 @@ export const applicationApi = {
   create: (data: JobApplication) => http.post('/applications', data),
   createFrom: (sourceId: number, data: JobApplication, sameSubmission: boolean) => http.post(`/applications/${sourceId}/create-from`, data, { params: { sameSubmission } }),
   createPreference: (submissionId: string, data: JobApplication) => http.post(`/applications/submissions/${submissionId}/preferences`, data),
+  reorderPreferences: (submissionId: string, ids: number[]) => http.put(`/applications/submissions/${submissionId}/preferences/order`, { ids }),
   updateSubmission: (submissionId: string, data: Partial<JobApplication>) => http.put(`/applications/submissions/${submissionId}`, data),
   update: (id: number, data: JobApplication) => http.put(`/applications/${id}`, data),
   remove: (id: number) => http.delete(`/applications/${id}`),

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jobtracker.common.Result;
 import com.jobtracker.dto.ApplicationQueryDTO;
 import com.jobtracker.dto.BatchApplicationIdsDTO;
+import com.jobtracker.dto.PreferenceOrderDTO;
 import com.jobtracker.dto.StatusUpdateDTO;
 import com.jobtracker.entity.JobApplication;
 import com.jobtracker.entity.ApplicationSubmission;
@@ -120,6 +121,12 @@ public class JobApplicationController {
             @RequestBody JobApplication application
     ) {
         return Result.ok(jobApplicationService.createPreference(submissionId, application));
+    }
+
+    @PutMapping("/submissions/{submissionId}/preferences/order")
+    public Result<Void> reorderPreferences(@PathVariable String submissionId, @Valid @RequestBody PreferenceOrderDTO dto) {
+        jobApplicationService.reorderPreferences(submissionId, dto.getIds());
+        return Result.ok();
     }
 
     @PutMapping("/{id}")

@@ -21,6 +21,7 @@ public interface JobApplicationService extends IService<JobApplication> {
     JobApplication createApplication(JobApplication application);
     JobApplication createFromApplication(Long sourceId, JobApplication application, boolean sameSubmission);
     JobApplication createPreference(String submissionId, JobApplication application);
+    void reorderPreferences(String submissionId, List<Long> ids);
     JobApplication updateApplication(JobApplication application);
     void updateStatus(Long id, String status);
     void deleteByIds(List<Long> ids);

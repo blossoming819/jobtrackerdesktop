@@ -272,9 +272,9 @@
       <div><span>投递批次</span><strong>{{ selectedSubmission?.recruitmentType || '-' }}</strong></div>
       <div><span>志愿数量</span><strong>{{ preferenceRows.length }}</strong></div>
     </div>
-    <el-table :data="preferenceRows" class="preference-table">
+    <el-table :data="displayPreferenceRows" class="preference-table">
       <el-table-column label="志愿" width="76">
-        <template #default="{ row }"><el-tag size="small">第 {{ row.preferenceOrder }} 志愿</el-tag></template>
+        <template #default="{ row, $index }"><el-tag size="small">第 {{ preferenceReordering ? $index + 1 : row.preferenceOrder }} 志愿</el-tag></template>
       </el-table-column>
       <el-table-column prop="positionName" label="岗位" min-width="190" show-overflow-tooltip />
       <el-table-column label="所属组织" min-width="220">
@@ -286,9 +286,13 @@
       <el-table-column prop="appliedTime" label="投递时间" width="150">
         <template #default="{ row }">{{ formatDate(row.appliedTime) || '未填写' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="150">
-        <template #default="{ row }">
-          <div class="preference-row-actions">
+      <el-table-column label="操作" width="180">
+        <template #default="{ row, $index }">
+          <div v-if="preferenceReordering" class="preference-row-actions">
+            <el-button size="small" :disabled="$index === 0" @click="movePreference($index, -1)">上移</el-button>
+            <el-button size="small" :disabled="$index === displayPreferenceRows.length - 1" @click="movePreference($index, 1)">下移</el-button>
+          </div>
+          <div v-else class="preference-row-actions">
             <el-button size="small" @click="$router.push(`/application/${row.id}`)">详情</el-button>
             <el-button size="small" @click="editPreference(row)">编辑</el-button>
           </div>
@@ -298,6 +302,11 @@
     <template #footer>
       <el-button @click="preferenceDialogVisible = false">关闭</el-button>
       <el-button @click="openSubmissionEditor">编辑本次网申</el-button>
+      <template v-if="preferenceReordering">
+        <el-button @click="cancelPreferenceReorder">取消调整</el-button>
+        <el-button type="primary" @click="savePreferenceOrder">保存顺序</el-button>
+      </template>
+      <el-button v-else @click="beginPreferenceReorder">调整顺序</el-button>
       <el-button type="primary" @click="addPreferenceFromDialog">添加下一志愿</el-button>
     </template>
   </el-dialog>
@@ -420,6 +429,8 @@ const parentSubmissionId = ref<string>()
 const submissionMode = ref<'independent' | 'preference'>('independent')
 const preferenceDialogVisible = ref(false)
 const selectedSubmission = ref<ApplicationRow>()
+const preferenceReordering = ref(false)
+const preferenceOrderDraft = ref<JobApplication[]>([])
 const submissionDialogVisible = ref(false)
 const editingSubmissionId = ref<string>()
 const submissionForm = reactive<JobApplication>(emptyForm())
@@ -461,6 +472,7 @@ const dialogTitle = computed(() => {
 const organizationDialogTitle = computed(() => organizationEditingId.value ? '编辑组织节点' : '新建组织节点')
 const preferenceRows = computed(() => [...(selectedSubmission.value?.preferences || [])]
   .sort((left, right) => (left.preferenceOrder || 0) - (right.preferenceOrder || 0)))
+const displayPreferenceRows = computed(() => preferenceReordering.value ? preferenceOrderDraft.value : preferenceRows.value)
 const managedOrganizationRoot = computed(() => organizationTree.value.find(item => item.id === organizationManagerRootId.value))
 const organizationManagerTitle = computed(() => managedOrganizationRoot.value
   ? `组织节点管理 · ${managedOrganizationRoot.value.name}`
@@ -1064,7 +1076,38 @@ function openEdit(row: JobApplication) {
 function openPreferenceDialog(row: ApplicationRow) {
   if (!row.multiPreference) return
   selectedSubmission.value = row
+  preferenceReordering.value = false
+  preferenceOrderDraft.value = []
   preferenceDialogVisible.value = true
+}
+
+function beginPreferenceReorder() {
+  preferenceOrderDraft.value = preferenceRows.value.map(item => ({ ...item }))
+  preferenceReordering.value = true
+}
+
+function movePreference(index: number, direction: -1 | 1) {
+  const targetIndex = index + direction
+  if (targetIndex < 0 || targetIndex >= preferenceOrderDraft.value.length) return
+  const items = preferenceOrderDraft.value
+  ;[items[index], items[targetIndex]] = [items[targetIndex], items[index]]
+}
+
+function cancelPreferenceReorder() {
+  preferenceReordering.value = false
+  preferenceOrderDraft.value = []
+}
+
+async function savePreferenceOrder() {
+  const submissionId = selectedSubmission.value?.submissionGroupId
+  const ids = preferenceOrderDraft.value.map(item => item.id).filter((id): id is number => typeof id === 'number')
+  if (!submissionId || ids.length !== preferenceOrderDraft.value.length) return
+  await applicationApi.reorderPreferences(submissionId, ids)
+  const ordered = preferenceOrderDraft.value.map((item, index) => ({ ...item, preferenceOrder: index + 1 }))
+  if (selectedSubmission.value) selectedSubmission.value = { ...selectedSubmission.value, preferences: ordered }
+  cancelPreferenceReorder()
+  await load()
+  ElMessage.success('志愿顺序已保存')
 }
 
 function openSubmissionEditor() {
@@ -1118,6 +1161,7 @@ function editPreference(row: JobApplication) {
 
 function addPreferenceFromDialog() {
   if (!selectedSubmission.value) return
+  cancelPreferenceReorder()
   preferenceDialogVisible.value = false
   openPreferenceFromParent(selectedSubmission.value)
 }
