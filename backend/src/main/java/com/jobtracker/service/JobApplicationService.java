@@ -20,6 +20,7 @@ public interface JobApplicationService extends IService<JobApplication> {
     List<String> resumeCategoryOptions();
     JobApplication createApplication(JobApplication application);
     JobApplication createFromApplication(Long sourceId, JobApplication application, boolean sameSubmission);
+    JobApplication createPreference(String submissionId, JobApplication application);
     JobApplication updateApplication(JobApplication application);
     void updateStatus(Long id, String status);
     void deleteByIds(List<Long> ids);

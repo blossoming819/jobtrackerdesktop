@@ -17,6 +17,26 @@ CREATE TABLE IF NOT EXISTS resume (
   INDEX idx_resume_deleted (deleted)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS application_submission (
+  id VARCHAR(80) PRIMARY KEY,
+  company_name VARCHAR(200) NOT NULL,
+  recruitment_type VARCHAR(80),
+  work_location VARCHAR(100),
+  source VARCHAR(80),
+  applied_time DATETIME,
+  submission_organization_id BIGINT,
+  employer_organization_id BIGINT,
+  organization_unit_id BIGINT,
+  organization_path_snapshot VARCHAR(1200),
+  employer_name_snapshot VARCHAR(200),
+  group_name_snapshot VARCHAR(200),
+  remark VARCHAR(1000),
+  created_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted TINYINT DEFAULT 0,
+  INDEX idx_submission_organization (organization_unit_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS organization_unit (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   parent_id BIGINT,

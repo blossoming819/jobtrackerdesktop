@@ -25,6 +25,8 @@ export interface JobApplication {
   employerNameSnapshot?: string
   groupNameSnapshot?: string
   multiPreference?: boolean
+  submissionParent?: boolean
+  preferenceCount?: number
   preferences?: JobApplication[]
   resumeId?: number
   profileId?: string

@@ -111,6 +111,14 @@ public class JobApplicationController {
         return Result.ok(jobApplicationService.createFromApplication(sourceId, application, sameSubmission));
     }
 
+    @PostMapping("/submissions/{submissionId}/preferences")
+    public Result<JobApplication> createPreference(
+            @PathVariable String submissionId,
+            @RequestBody JobApplication application
+    ) {
+        return Result.ok(jobApplicationService.createPreference(submissionId, application));
+    }
+
     @PutMapping("/{id}")
     public Result<JobApplication> update(@PathVariable Long id, @RequestBody JobApplication application) {
         application.setId(id);

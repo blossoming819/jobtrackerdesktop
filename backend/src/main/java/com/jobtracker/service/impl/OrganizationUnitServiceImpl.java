@@ -74,6 +74,50 @@ public class OrganizationUnitServiceImpl extends ServiceImpl<OrganizationUnitMap
 
     @Override
     @Transactional
+    public OrganizationUnit updateUnit(Long id, OrganizationUnit unit) {
+        OrganizationUnit existing = getById(id);
+        if (existing == null) throw new IllegalArgumentException("组织节点不存在");
+        String name = normalizeName(unit.getName());
+        if (!StringUtils.hasText(name)) throw new IllegalArgumentException("请填写组织名称");
+        Long parentId = unit.getParentId();
+        if (id.equals(parentId)) throw new IllegalArgumentException("组织节点不能把自己设为上级");
+        if (parentId != null) {
+            OrganizationUnit parent = getById(parentId);
+            if (parent == null || !Boolean.TRUE.equals(parent.getActive())) {
+                throw new IllegalArgumentException("上级组织不存在或已停用");
+            }
+            assertNotDescendant(id, parentId);
+        }
+        OrganizationUnit duplicate = lambdaQuery()
+                .eq(parentId != null, OrganizationUnit::getParentId, parentId)
+                .isNull(parentId == null, OrganizationUnit::getParentId)
+                .eq(OrganizationUnit::getName, name)
+                .ne(OrganizationUnit::getId, id)
+                .one();
+        if (duplicate != null) throw new IllegalArgumentException("同一上级下已存在同名组织节点");
+        existing.setParentId(parentId);
+        existing.setName(name);
+        existing.setUnitType(StringUtils.hasText(unit.getUnitType()) ? unit.getUnitType().trim() : existing.getUnitType());
+        existing.setCompanyEntity(unit.getCompanyEntity() == null ? existing.getCompanyEntity() : unit.getCompanyEntity());
+        existing.setAliases(unit.getAliases());
+        existing.setSortOrder(unit.getSortOrder() == null ? existing.getSortOrder() : unit.getSortOrder());
+        existing.setActive(unit.getActive() == null ? existing.getActive() : unit.getActive());
+        updateById(existing);
+        return existing;
+    }
+
+    private void assertNotDescendant(Long id, Long proposedParentId) {
+        OrganizationUnit cursor = getById(proposedParentId);
+        int guard = (int) count() + 1;
+        while (cursor != null && guard-- > 0) {
+            if (id.equals(cursor.getId())) throw new IllegalArgumentException("不能把组织节点移动到自己的下级");
+            cursor = cursor.getParentId() == null ? null : getById(cursor.getParentId());
+        }
+        if (cursor != null) throw new IllegalArgumentException("组织层级存在循环关系");
+    }
+
+    @Override
+    @Transactional
     public void applyOrganization(JobApplication application) {
         if (application.getOrganizationUnitId() == null) {
             if (!StringUtils.hasText(application.getCompanyName())) return;

@@ -9,6 +9,7 @@ import com.jobtracker.dto.ApplicationQueryDTO;
 import com.jobtracker.entity.InterviewNote;
 import com.jobtracker.entity.InterviewRecord;
 import com.jobtracker.entity.JobApplication;
+import com.jobtracker.entity.ApplicationSubmission;
 import com.jobtracker.entity.Reminder;
 import com.jobtracker.entity.Resume;
 import com.jobtracker.mapper.JobApplicationMapper;
@@ -18,6 +19,7 @@ import com.jobtracker.service.JobApplicationService;
 import com.jobtracker.service.ReminderService;
 import com.jobtracker.service.ResumeService;
 import com.jobtracker.service.OrganizationUnitService;
+import com.jobtracker.service.ApplicationSubmissionService;
 import com.jobtracker.vo.ApplicationDetailVO;
 import com.jobtracker.vo.ApplicationCompanyGroupVO;
 import com.jobtracker.vo.ApplicationSubmissionVO;
@@ -61,6 +63,7 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
     private final ReminderService reminderService;
     private final ObjectMapper objectMapper;
     private final OrganizationUnitService organizationUnitService;
+    private final ApplicationSubmissionService applicationSubmissionService;
 
     @Override
     public Page<JobApplication> pageApplications(ApplicationQueryDTO query) {
@@ -112,12 +115,23 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
     private List<ApplicationSubmissionVO> groupSubmissionApplications(List<JobApplication> applications) {
         Map<String, List<JobApplication>> grouped = new LinkedHashMap<>();
         for (JobApplication application : applications) {
-            boolean preference = StringUtils.hasText(application.getSubmissionGroupId())
-                    && application.getPreferenceOrder() != null;
-            String key = preference
-                    ? "preference:" + application.getSubmissionGroupId().trim()
+            boolean groupedSubmission = StringUtils.hasText(application.getSubmissionGroupId());
+            String key = groupedSubmission
+                    ? "submission:" + application.getSubmissionGroupId().trim()
                     : "application:" + application.getId();
             grouped.computeIfAbsent(key, ignored -> new ArrayList<>()).add(application);
+        }
+
+        Map<String, ApplicationSubmission> parents = new LinkedHashMap<>();
+        List<String> parentIds = applications.stream()
+                .map(JobApplication::getSubmissionGroupId)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        if (!parentIds.isEmpty()) {
+            for (ApplicationSubmission parent : applicationSubmissionService.listByIds(parentIds)) {
+                parents.put(parent.getId(), parent);
+            }
         }
 
         List<ApplicationSubmissionVO> result = new ArrayList<>();
@@ -129,11 +143,40 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
                     left.getPreferenceOrder() == null ? Integer.MAX_VALUE : left.getPreferenceOrder(),
                     right.getPreferenceOrder() == null ? Integer.MAX_VALUE : right.getPreferenceOrder()
             ));
-            submission.setMultiPreference(items.size() > 1);
+            boolean multiPreference = items.size() > 1;
+            submission.setSubmissionParent(multiPreference);
+            submission.setPreferenceCount(items.size());
+            submission.setMultiPreference(multiPreference);
             submission.setPreferences(new ArrayList<>(items));
+            ApplicationSubmission parent = parents.get(representative.getSubmissionGroupId());
+            if (multiPreference && parent != null) {
+                applySubmissionParent(parent, submission);
+            }
             result.add(submission);
         }
         return result;
+    }
+
+    private void applySubmissionParent(ApplicationSubmission parent, ApplicationSubmissionVO target) {
+        target.setSubmissionGroupId(parent.getId());
+        target.setCompanyName(parent.getCompanyName());
+        target.setRecruitmentType(parent.getRecruitmentType());
+        target.setWorkLocation(parent.getWorkLocation());
+        target.setSource(parent.getSource());
+        target.setAppliedTime(parent.getAppliedTime());
+        target.setSubmissionOrganizationId(parent.getSubmissionOrganizationId());
+        target.setEmployerOrganizationId(parent.getEmployerOrganizationId());
+        target.setOrganizationUnitId(parent.getOrganizationUnitId());
+        target.setOrganizationPathSnapshot(parent.getOrganizationPathSnapshot());
+        target.setEmployerNameSnapshot(parent.getEmployerNameSnapshot());
+        target.setGroupNameSnapshot(parent.getGroupNameSnapshot());
+        target.setRemark(parent.getRemark());
+        target.setPositionName("本次网申");
+        target.setPositionType(null);
+        target.setResumeCategory(null);
+        target.setResumeId(null);
+        target.setProfileId(null);
+        target.setCurrentStatus(null);
     }
 
     private String normalizeCompanyName(String value) {
@@ -239,6 +282,7 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
         organizationUnitService.applyOrganization(application);
         prepareNewSubmission(application);
         save(application);
+        applicationSubmissionService.ensureFrom(application);
         return application;
     }
 
@@ -255,6 +299,7 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
         if (!sameSubmission) {
             prepareNewSubmission(application);
             save(application);
+            applicationSubmissionService.ensureFrom(application);
             return application;
         }
 
@@ -269,22 +314,32 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
             updateById(source);
         }
 
-        Integer maxOrder = lambdaQuery()
-                .eq(JobApplication::getSubmissionGroupId, groupId)
-                .isNotNull(JobApplication::getPreferenceOrder)
-                .list()
-                .stream()
-                .map(JobApplication::getPreferenceOrder)
-                .max(Integer::compareTo)
-                .orElse(0);
-        application.setSubmissionGroupId(groupId);
+        ApplicationSubmission parent = applicationSubmissionService.ensureFrom(source);
+        return createPreference(parent.getId(), application);
+    }
+
+    @Override
+    @Transactional
+    public JobApplication createPreference(String submissionId, JobApplication application) {
+        ApplicationSubmission parent = applicationSubmissionService.getById(submissionId);
+        if (parent == null) throw new IllegalArgumentException("投递父记录不存在");
+        application.setId(null);
+        applicationSubmissionService.applyDefaults(parent, application);
+        organizationUnitService.applyOrganization(application);
+        List<JobApplication> siblings = lambdaQuery()
+                .eq(JobApplication::getSubmissionGroupId, submissionId)
+                .list();
+        int maxOrder = 0;
+        for (JobApplication sibling : siblings) {
+            if (sibling.getPreferenceOrder() == null || sibling.getPreferenceOrder() < 1) {
+                sibling.setPreferenceOrder(1);
+                updateById(sibling);
+            }
+            maxOrder = Math.max(maxOrder, sibling.getPreferenceOrder());
+        }
+        application.setSubmissionGroupId(submissionId);
         application.setPreferenceOrder(Math.max(maxOrder + 1, 2));
-        if (application.getAppliedTime() == null) {
-            application.setAppliedTime(source.getAppliedTime());
-        }
-        if (!StringUtils.hasText(application.getCurrentStatus())) {
-            application.setCurrentStatus(source.getCurrentStatus());
-        }
+        if (!StringUtils.hasText(application.getCurrentStatus())) application.setCurrentStatus("待投递");
         save(application);
         return application;
     }
@@ -297,6 +352,10 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
         }
         organizationUnitService.applyOrganization(application);
         updateById(application);
+        if (StringUtils.hasText(application.getSubmissionGroupId()) && lambdaQuery()
+                .eq(JobApplication::getSubmissionGroupId, application.getSubmissionGroupId()).count() <= 1) {
+            applicationSubmissionService.syncFrom(application);
+        }
         return application;
     }
 

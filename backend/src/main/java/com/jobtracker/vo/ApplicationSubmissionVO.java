@@ -10,6 +10,8 @@ import java.util.List;
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class ApplicationSubmissionVO extends JobApplication {
+    private boolean submissionParent;
+    private int preferenceCount;
     private boolean multiPreference;
     private List<JobApplication> preferences = new ArrayList<>();
 }

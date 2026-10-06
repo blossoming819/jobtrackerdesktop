@@ -29,9 +29,12 @@ class OrganizationSchemaMigrationTest {
         migration.migrate();
 
         assertTrue(hasColumn(dataSource, "job_application", "organization_unit_id"));
+        assertTrue(hasColumn(dataSource, "job_application", "submission_group_id"));
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM organization_unit WHERE name = '示例集团'", Long.class)).isEqualTo(1L);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM job_application WHERE organization_unit_id IS NOT NULL", Long.class)).isEqualTo(2L);
         assertThat(jdbcTemplate.queryForObject("SELECT DISTINCT organization_path_snapshot FROM job_application", String.class)).isEqualTo("示例集团");
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM application_submission", Long.class)).isEqualTo(2L);
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM job_application WHERE submission_group_id IS NOT NULL", Long.class)).isEqualTo(2L);
     }
 
     private boolean hasColumn(DataSource dataSource, String tableName, String columnName) throws Exception {

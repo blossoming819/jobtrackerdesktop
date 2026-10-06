@@ -3,12 +3,14 @@ package com.jobtracker.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobtracker.dto.ApplicationQueryDTO;
 import com.jobtracker.entity.JobApplication;
+import com.jobtracker.entity.ApplicationSubmission;
 import com.jobtracker.mapper.JobApplicationMapper;
 import com.jobtracker.service.InterviewNoteService;
 import com.jobtracker.service.InterviewRecordService;
 import com.jobtracker.service.ReminderService;
 import com.jobtracker.service.ResumeService;
 import com.jobtracker.service.OrganizationUnitService;
+import com.jobtracker.service.ApplicationSubmissionService;
 import com.jobtracker.vo.ApplicationCompanyGroupVO;
 import com.jobtracker.vo.ApplicationSubmissionVO;
 import org.junit.jupiter.api.Test;
@@ -35,7 +37,12 @@ class JobApplicationServiceImplTest {
         JobApplication independent = application(3L, "中国建设银行");
         independent.setSubmissionGroupId("independent-3");
         when(mapper.selectList(any())).thenReturn(List.of(first, second, independent));
-        JobApplicationServiceImpl service = service(mapper);
+        ApplicationSubmission parent = new ApplicationSubmission();
+        parent.setId("ccb-2027");
+        parent.setCompanyName("中国建设银行父记录");
+        ApplicationSubmissionService submissionService = mock(ApplicationSubmissionService.class);
+        when(submissionService.listByIds(any())).thenReturn(List.of(parent));
+        JobApplicationServiceImpl service = service(mapper, submissionService);
         ApplicationQueryDTO query = new ApplicationQueryDTO();
         query.setPageNo(1L);
         query.setPageSize(10L);
@@ -45,6 +52,9 @@ class JobApplicationServiceImplTest {
         assertThat(result.getTotal()).isEqualTo(2);
         ApplicationSubmissionVO submission = result.getRecords().get(0);
         assertThat(submission.isMultiPreference()).isTrue();
+        assertThat(submission.isSubmissionParent()).isTrue();
+        assertThat(submission.getPreferenceCount()).isEqualTo(2);
+        assertThat(submission.getCompanyName()).isEqualTo("中国建设银行父记录");
         assertThat(submission.getPreferences()).extracting(JobApplication::getId).containsExactly(1L, 2L);
         assertThat(result.getRecords().get(1).isMultiPreference()).isFalse();
     }
@@ -60,7 +70,7 @@ class JobApplicationServiceImplTest {
                 application(5L, "第三家公司"),
                 application(6L, "第三家公司")
         ));
-        JobApplicationServiceImpl service = service(mapper);
+        JobApplicationServiceImpl service = service(mapper, mock(ApplicationSubmissionService.class));
         ApplicationQueryDTO query = new ApplicationQueryDTO();
         query.setPageNo(1L);
         query.setPageSize(2L);
@@ -77,14 +87,15 @@ class JobApplicationServiceImplTest {
         assertThat(second.getChildren()).extracting(JobApplication::getId).containsExactly(3L, 4L);
     }
 
-    private JobApplicationServiceImpl service(JobApplicationMapper mapper) {
+    private JobApplicationServiceImpl service(JobApplicationMapper mapper, ApplicationSubmissionService submissionService) {
         JobApplicationServiceImpl service = new JobApplicationServiceImpl(
                 mock(InterviewRecordService.class),
                 mock(InterviewNoteService.class),
                 mock(ResumeService.class),
                 mock(ReminderService.class),
                 new ObjectMapper(),
-                mock(OrganizationUnitService.class)
+                mock(OrganizationUnitService.class),
+                submissionService
         );
         ReflectionTestUtils.setField(service, "baseMapper", mapper);
         return service;

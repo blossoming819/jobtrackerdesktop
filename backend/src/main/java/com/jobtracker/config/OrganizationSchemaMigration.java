@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -24,6 +25,8 @@ public class OrganizationSchemaMigration {
     @PostConstruct
     public void migrate() {
         jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS organization_unit (id BIGINT AUTO_INCREMENT PRIMARY KEY, parent_id BIGINT, name VARCHAR(200) NOT NULL, unit_type VARCHAR(40) NOT NULL DEFAULT 'OTHER', company_entity TINYINT NOT NULL DEFAULT 0, aliases VARCHAR(500), sort_order INT NOT NULL DEFAULT 0, active TINYINT NOT NULL DEFAULT 1, created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted TINYINT DEFAULT 0)");
+        addColumnIfMissing("submission_group_id", "VARCHAR(80)");
+        addColumnIfMissing("preference_order", "INT");
         addColumnIfMissing("submission_organization_id", "BIGINT");
         addColumnIfMissing("employer_organization_id", "BIGINT");
         addColumnIfMissing("organization_unit_id", "BIGINT");
@@ -32,6 +35,41 @@ public class OrganizationSchemaMigration {
         addColumnIfMissing("group_name_snapshot", "VARCHAR(200)");
         createIndexes();
         migrateLegacyCompanies();
+        migrateSubmissionParents();
+    }
+
+    private void migrateSubmissionParents() {
+        jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS application_submission (id VARCHAR(80) PRIMARY KEY, company_name VARCHAR(200) NOT NULL, recruitment_type VARCHAR(80), work_location VARCHAR(100), source VARCHAR(80), applied_time TIMESTAMP, submission_organization_id BIGINT, employer_organization_id BIGINT, organization_unit_id BIGINT, organization_path_snapshot VARCHAR(1200), employer_name_snapshot VARCHAR(200), group_name_snapshot VARCHAR(200), remark VARCHAR(1000), created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted TINYINT DEFAULT 0)");
+        String sql = "SELECT id, company_name, submission_group_id, submission_organization_id, employer_organization_id, organization_unit_id, organization_path_snapshot, employer_name_snapshot, group_name_snapshot, "
+                + optionalColumn("recruitment_type") + ", " + optionalColumn("work_location") + ", "
+                + optionalColumn("source") + ", " + optionalColumn("applied_time") + ", " + optionalColumn("remark")
+                + " FROM job_application WHERE deleted = 0 ORDER BY id";
+        for (Map<String, Object> row : jdbcTemplate.queryForList(sql)) {
+            String groupId = text(row.get("submission_group_id"));
+            if (groupId == null) {
+                groupId = UUID.randomUUID().toString();
+                jdbcTemplate.update("UPDATE job_application SET submission_group_id = ? WHERE id = ?", groupId, row.get("id"));
+            }
+            Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM application_submission WHERE id = ?", Long.class, groupId);
+            if (count != null && count > 0) continue;
+            jdbcTemplate.update("INSERT INTO application_submission (id, company_name, recruitment_type, work_location, source, applied_time, submission_organization_id, employer_organization_id, organization_unit_id, organization_path_snapshot, employer_name_snapshot, group_name_snapshot, remark, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)",
+                    groupId, defaultText(row.get("company_name"), "未填写公司"), row.get("recruitment_type"), row.get("work_location"), row.get("source"), row.get("applied_time"),
+                    row.get("submission_organization_id"), row.get("employer_organization_id"), row.get("organization_unit_id"), row.get("organization_path_snapshot"), row.get("employer_name_snapshot"), row.get("group_name_snapshot"), row.get("remark"));
+        }
+    }
+
+    private String optionalColumn(String columnName) {
+        return columnExists("job_application", columnName) ? columnName : "NULL AS " + columnName;
+    }
+
+    private String text(Object value) {
+        String result = value == null ? null : String.valueOf(value).trim();
+        return result == null || result.isEmpty() ? null : result;
+    }
+
+    private String defaultText(Object value, String fallback) {
+        String result = text(value);
+        return result == null ? fallback : result;
     }
 
     private void migrateLegacyCompanies() {

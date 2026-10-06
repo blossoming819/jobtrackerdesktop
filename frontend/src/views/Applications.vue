@@ -60,8 +60,8 @@
             <span>{{ groupMode === 'group' ? '同集团招聘合集' : '同企业投递合集' }}</span>
           </div>
           <button v-else-if="row.multiPreference" class="submission-summary-button" @click.stop="openPreferenceDialog(row)">
-            <span>多志愿投递</span>
-            <el-tag class="preference-tag" size="small">{{ row.preferences?.length || 0 }} 个志愿</el-tag>
+            <span>本次网申</span>
+            <el-tag class="preference-tag" size="small">{{ row.preferenceCount || row.preferences?.length || 0 }} 个志愿</el-tag>
           </button>
           <div v-else class="position-cell">
             <el-tooltip :content="row.positionName" placement="top" :disabled="!row.positionName">
@@ -73,33 +73,36 @@
       </el-table-column>
       <el-table-column prop="positionType" label="岗位类别" min-width="145">
         <template #default="{ row }">
-          <el-tooltip v-if="!row.isGroup" :content="row.positionType || '-'" placement="top" :disabled="!row.positionType">
+          <el-tooltip v-if="!row.isGroup && !row.submissionParent" :content="row.positionType || '-'" placement="top" :disabled="!row.positionType">
             <div class="multi-tag-cell">
               <el-tag v-for="tag in visibleMultiTags(row.positionType)" :key="tag" class="category-tag" :style="tagStyle(tag)" size="small">{{ tag }}</el-tag>
               <el-tag v-if="hiddenMultiTagCount(row.positionType)" class="more-tag" size="small" type="info">+{{ hiddenMultiTagCount(row.positionType) }}</el-tag>
               <span v-if="!row.positionType" class="muted">-</span>
             </div>
           </el-tooltip>
+          <span v-else-if="row.submissionParent" class="muted">各志愿独立</span>
         </template>
       </el-table-column>
       <el-table-column prop="recruitmentType" label="投递批次" width="84" show-overflow-tooltip />
       <el-table-column prop="resumeCategory" label="简历类别" min-width="145">
         <template #default="{ row }">
-          <el-tooltip v-if="!row.isGroup" :content="row.resumeCategory || '-'" placement="top" :disabled="!row.resumeCategory">
+          <el-tooltip v-if="!row.isGroup && !row.submissionParent" :content="row.resumeCategory || '-'" placement="top" :disabled="!row.resumeCategory">
             <div class="multi-tag-cell">
               <el-tag v-for="tag in visibleMultiTags(row.resumeCategory)" :key="tag" class="category-tag" :style="tagStyle(tag)" size="small">{{ tag }}</el-tag>
               <el-tag v-if="hiddenMultiTagCount(row.resumeCategory)" class="more-tag" size="small" type="info">+{{ hiddenMultiTagCount(row.resumeCategory) }}</el-tag>
               <span v-if="!row.resumeCategory" class="muted">-</span>
             </div>
           </el-tooltip>
+          <span v-else-if="row.submissionParent" class="muted">各志愿独立</span>
         </template>
       </el-table-column>
       <el-table-column prop="currentStatus" label="状态" width="104">
         <template #default="{ row }">
-          <span v-if="!row.isGroup" class="status-pill" :class="statusMeta(displayStatus(row)).className">
+          <span v-if="!row.isGroup && !row.submissionParent" class="status-pill" :class="statusMeta(displayStatus(row)).className">
             <el-icon><component :is="statusMeta(displayStatus(row)).icon" /></el-icon>
             <span>{{ displayStatus(row) }}</span>
           </span>
+          <span v-else-if="row.submissionParent" class="muted">见志愿</span>
         </template>
       </el-table-column>
       <el-table-column prop="appliedTime" label="投递时间" width="140">
@@ -109,7 +112,7 @@
         <template #default="{ row }">
           <div v-if="!row.isGroup" class="application-row-actions">
             <el-button size="small" @click.stop="row.multiPreference ? openPreferenceDialog(row) : $router.push(`/application/${row.id}`)">{{ row.multiPreference ? '志愿' : '详情' }}</el-button>
-            <el-button size="small" @click.stop="row.multiPreference ? openQuickAdd(preferenceSource(row), true) : openEdit(row)">{{ row.multiPreference ? '加志愿' : '编辑' }}</el-button>
+            <el-button size="small" @click.stop="row.multiPreference ? openPreferenceFromParent(row) : openEdit(row)">{{ row.multiPreference ? '加志愿' : '编辑' }}</el-button>
             <el-dropdown trigger="click" @command="handleRowCommand($event, row)">
               <el-button size="small" @click.stop>更多</el-button>
               <template #dropdown>
@@ -149,11 +152,14 @@
         </template>
         <el-tag v-else size="small">{{ form.preferenceOrder ? `第 ${form.preferenceOrder} 志愿` : '独立岗位投递' }}</el-tag>
       </el-form-item>
-      <el-alert v-if="quickAddSourceId" class="quick-add-alert" type="info" :closable="false" show-icon>
+      <el-alert v-if="parentSubmissionId" class="quick-add-alert" type="info" :closable="false" show-icon>
+        已从本次网申父记录复用公司、组织、批次、地点、来源和投递时间；简历、JD、链接、状态等按志愿单独填写。
+      </el-alert>
+      <el-alert v-else-if="quickAddSourceId" class="quick-add-alert" type="info" :closable="false" show-icon>
         已复用公司、招聘批次、地点、来源和简历信息；岗位名称、JD、链接、简历及其他字段都可独立修改。
       </el-alert>
       <el-row :gutter="12">
-        <el-col :span="12"><el-form-item label="公司名称"><el-input v-model="form.companyName" placeholder="简单公司可直接填写" /></el-form-item></el-col>
+        <el-col :span="12"><el-form-item label="公司名称"><el-input v-model="form.companyName" :disabled="Boolean(form.organizationUnitId)" placeholder="简单公司可直接填写" /><div v-if="form.organizationUnitId" class="form-item-hint">已绑定组织时由招聘企业节点决定，可通过“编辑当前组织”修改。</div></el-form-item></el-col>
         <el-col :span="12"><el-form-item label="岗位名称"><el-input v-model="form.positionName" /></el-form-item></el-col>
       </el-row>
       <el-form-item label="组织归属">
@@ -168,6 +174,7 @@
             @change="handleOrganizationChange"
           />
           <el-button @click="openOrganizationDialog">新建组织节点</el-button>
+          <el-button :disabled="!form.organizationUnitId" @click="openEditOrganizationDialog">编辑当前组织</el-button>
         </div>
         <div v-if="form.organizationPathSnapshot" class="organization-form-summary">
           <span>完整路径：{{ form.organizationPathSnapshot }}</span>
@@ -293,8 +300,8 @@
     </template>
   </el-dialog>
 
-  <el-dialog v-model="organizationDialogVisible" title="新建组织节点" width="min(620px, 92vw)" class="organization-dialog">
-    <el-alert title="选择上级后创建一个下级节点；可反复创建，从集团一直建立到部门或团队。" type="info" :closable="false" show-icon />
+  <el-dialog v-model="organizationDialogVisible" :title="organizationDialogTitle" width="min(620px, 92vw)" class="organization-dialog">
+    <el-alert :title="organizationEditingId ? '可修改名称、类型、上级和企业主体；系统会阻止循环层级。' : '选择上级后创建一个下级节点；可反复创建，从集团一直建立到部门或团队。'" type="info" :closable="false" show-icon />
     <el-form :model="organizationDraft" label-width="96px" class="organization-create-form">
       <el-form-item label="上级组织">
         <el-cascader v-model="organizationDraft.parentId" :options="organizationTree" :props="organizationCascaderProps" clearable filterable placeholder="不选表示一级组织" />
@@ -313,7 +320,7 @@
     </el-form>
     <template #footer>
       <el-button @click="organizationDialogVisible = false">取消</el-button>
-      <el-button type="primary" @click="createOrganization">创建并选中</el-button>
+      <el-button type="primary" @click="saveOrganization">{{ organizationEditingId ? '保存修改' : '创建并选中' }}</el-button>
     </template>
   </el-dialog>
 </template>
@@ -346,6 +353,7 @@ const groupOptions = [
 ]
 const organizationTree = ref<OrganizationUnit[]>([])
 const organizationDialogVisible = ref(false)
+const organizationEditingId = ref<number>()
 const organizationDraft = reactive<Partial<OrganizationUnit>>({ name: '', unitType: 'COMPANY', companyEntity: true, active: true })
 const organizationCascaderProps = { value: 'id', label: 'name', children: 'children', emitPath: false, checkStrictly: true }
 const organizationTypeOptions = [
@@ -368,6 +376,7 @@ const formResumeCategories = ref<string[]>([])
 const namingTemplate = ref('company')
 const resumeAliasAuto = ref(true)
 const quickAddSourceId = ref<number>()
+const parentSubmissionId = ref<string>()
 const submissionMode = ref<'independent' | 'preference'>('independent')
 const preferenceDialogVisible = ref(false)
 const selectedSubmission = ref<ApplicationRow>()
@@ -401,10 +410,12 @@ const formStatusOptions = computed(() => {
 })
 const dialogTitle = computed(() => {
   if (form.id) return '编辑岗位'
+  if (parentSubmissionId.value) return '添加下一志愿'
   if (quickAddSourceId.value && submissionMode.value === 'preference') return '添加下一志愿'
   if (quickAddSourceId.value) return '同公司新增岗位'
   return '新增岗位'
 })
+const organizationDialogTitle = computed(() => organizationEditingId.value ? '编辑组织节点' : '新建组织节点')
 const preferenceRows = computed(() => [...(selectedSubmission.value?.preferences || [])]
   .sort((left, right) => (left.preferenceOrder || 0) - (right.preferenceOrder || 0)))
 
@@ -554,6 +565,9 @@ function collapseSubmissions(applications: ApplicationRow[]) {
     return {
       ...items[0],
       multiPreference: items.length > 1,
+      submissionParent: items.length > 1,
+      preferenceCount: items.length,
+      positionName: items.length > 1 ? '本次网申' : items[0].positionName,
       preferences
     }
   })
@@ -620,6 +634,7 @@ function handleOrganizationChange(value?: number) {
 }
 
 function openOrganizationDialog() {
+  organizationEditingId.value = undefined
   Object.assign(organizationDraft, {
     parentId: form.organizationUnitId,
     name: '',
@@ -631,17 +646,37 @@ function openOrganizationDialog() {
   organizationDialogVisible.value = true
 }
 
-async function createOrganization() {
+function openEditOrganizationDialog() {
+  const path = findOrganizationContext(form.organizationUnitId)
+  const current = path?.[path.length - 1]
+  if (!current?.id) return
+  organizationEditingId.value = current.id
+  Object.assign(organizationDraft, {
+    parentId: current.parentId,
+    name: current.name,
+    unitType: current.unitType,
+    companyEntity: current.companyEntity,
+    aliases: current.aliases || '',
+    sortOrder: current.sortOrder || 0,
+    active: current.active !== false
+  })
+  organizationDialogVisible.value = true
+}
+
+async function saveOrganization() {
   if (!organizationDraft.name?.trim()) {
     ElMessage.warning('请填写组织名称')
     return
   }
-  const created = await organizationApi.create(organizationDraft)
+  const saved = organizationEditingId.value
+    ? await organizationApi.update(organizationEditingId.value, organizationDraft)
+    : await organizationApi.create(organizationDraft)
   await loadOrganizationTree()
-  form.organizationUnitId = created.id
-  handleOrganizationChange(created.id)
+  form.organizationUnitId = saved.id
+  handleOrganizationChange(saved.id)
   organizationDialogVisible.value = false
-  ElMessage.success('组织节点已创建并选中')
+  ElMessage.success(organizationEditingId.value ? '组织节点已更新' : '组织节点已创建并选中')
+  organizationEditingId.value = undefined
 }
 
 function employerDisplay(row: JobApplication) {
@@ -862,6 +897,7 @@ function displayStatus(row: JobApplication) {
 function openCreate() {
   resetForm()
   quickAddSourceId.value = undefined
+  parentSubmissionId.value = undefined
   submissionMode.value = 'independent'
   formPositionTypes.value = []
   formResumeCategories.value = []
@@ -873,6 +909,7 @@ function openEdit(row: JobApplication) {
   resetForm()
   Object.assign(form, row)
   quickAddSourceId.value = undefined
+  parentSubmissionId.value = undefined
   submissionMode.value = row.preferenceOrder ? 'preference' : 'independent'
   form.currentStatus = normalizedCurrentStatus(row)
   const options = parseProgressFlow(row.progressFlow)
@@ -908,9 +945,8 @@ function editPreference(row: JobApplication) {
 
 function addPreferenceFromDialog() {
   if (!selectedSubmission.value) return
-  const source = preferenceSource(selectedSubmission.value)
   preferenceDialogVisible.value = false
-  openQuickAdd(source, true)
+  openPreferenceFromParent(selectedSubmission.value)
 }
 
 function resetForm() {
@@ -921,6 +957,7 @@ function resetForm() {
 function openQuickAdd(row: JobApplication, sameSubmission: boolean) {
   if (!row.id) return
   resetForm()
+  parentSubmissionId.value = undefined
   Object.assign(form, {
     companyName: row.companyName,
     submissionOrganizationId: row.submissionOrganizationId,
@@ -947,11 +984,39 @@ function openQuickAdd(row: JobApplication, sameSubmission: boolean) {
   dialogVisible.value = true
 }
 
+function openPreferenceFromParent(row: ApplicationRow) {
+  if (!row.submissionGroupId) return
+  resetForm()
+  Object.assign(form, {
+    companyName: row.companyName,
+    submissionOrganizationId: row.submissionOrganizationId,
+    employerOrganizationId: row.employerOrganizationId,
+    organizationUnitId: row.organizationUnitId,
+    organizationPathSnapshot: row.organizationPathSnapshot,
+    employerNameSnapshot: row.employerNameSnapshot,
+    groupNameSnapshot: row.groupNameSnapshot,
+    recruitmentType: row.recruitmentType,
+    workLocation: row.workLocation,
+    source: row.source,
+    currentStatus: '待投递',
+    appliedTime: row.appliedTime
+  })
+  quickAddSourceId.value = undefined
+  parentSubmissionId.value = row.submissionGroupId
+  submissionMode.value = 'preference'
+  formPositionTypes.value = []
+  formResumeCategories.value = []
+  resumeAliasAuto.value = true
+  dialogVisible.value = true
+}
+
 function handleRowCommand(command: string, row: JobApplication) {
   const applicationRow = row as ApplicationRow
   const source = preferenceSource(applicationRow)
   if (command === 'new-position') openQuickAdd(source, false)
-  if (command === 'next-preference') openQuickAdd(source, true)
+  if (command === 'next-preference') applicationRow.submissionGroupId
+    ? openPreferenceFromParent(applicationRow)
+    : openQuickAdd(source, true)
   if (command === 'delete') {
     applicationRow.multiPreference ? removeSubmission(applicationRow) : (row.id && remove(row.id))
   }
@@ -1009,6 +1074,8 @@ async function save() {
   }
   if (form.id) {
     await applicationApi.update(form.id, form)
+  } else if (parentSubmissionId.value) {
+    await applicationApi.createPreference(parentSubmissionId.value, form)
   } else if (quickAddSourceId.value) {
     await applicationApi.createFrom(quickAddSourceId.value, form, submissionMode.value === 'preference')
   } else {
@@ -1018,6 +1085,7 @@ async function save() {
   }
   dialogVisible.value = false
   quickAddSourceId.value = undefined
+  parentSubmissionId.value = undefined
   await Promise.all([load(), loadFilterOptions()])
 }
 
