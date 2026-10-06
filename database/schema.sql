@@ -17,6 +17,22 @@ CREATE TABLE IF NOT EXISTS resume (
   INDEX idx_resume_deleted (deleted)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS organization_unit (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  parent_id BIGINT,
+  name VARCHAR(200) NOT NULL,
+  unit_type VARCHAR(40) NOT NULL DEFAULT 'OTHER',
+  company_entity TINYINT NOT NULL DEFAULT 0,
+  aliases VARCHAR(500),
+  sort_order INT NOT NULL DEFAULT 0,
+  active TINYINT NOT NULL DEFAULT 1,
+  created_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted TINYINT DEFAULT 0,
+  INDEX idx_organization_parent (parent_id),
+  INDEX idx_organization_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS job_application (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   company_name VARCHAR(100) NOT NULL,
@@ -37,6 +53,12 @@ CREATE TABLE IF NOT EXISTS job_application (
   applied_time DATETIME,
   submission_group_id VARCHAR(80),
   preference_order INT,
+  submission_organization_id BIGINT,
+  employer_organization_id BIGINT,
+  organization_unit_id BIGINT,
+  organization_path_snapshot VARCHAR(1200),
+  employer_name_snapshot VARCHAR(200),
+  group_name_snapshot VARCHAR(200),
   resume_id BIGINT,
   remark VARCHAR(1000),
   created_time DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -49,6 +71,8 @@ CREATE TABLE IF NOT EXISTS job_application (
   INDEX idx_application_resume (resume_id),
   INDEX idx_application_applied_time (applied_time),
   INDEX idx_application_submission_group (submission_group_id),
+  INDEX idx_application_organization (organization_unit_id),
+  INDEX idx_application_employer_org (employer_organization_id),
   INDEX idx_application_deleted (deleted)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

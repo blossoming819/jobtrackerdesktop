@@ -1,6 +1,6 @@
 import http from './http'
 import axios from 'axios'
-import type { CandidateProfileResponse, CandidateProfileSummary, ExtensionPairing, InterviewNote, InterviewRecord, JobApplication, NoteItem, ProfileSnapshot, Reminder, ResumeParseHistory } from '../types'
+import type { CandidateProfileResponse, CandidateProfileSummary, ExtensionPairing, InterviewNote, InterviewRecord, JobApplication, NoteItem, OrganizationUnit, ProfileSnapshot, Reminder, ResumeParseHistory } from '../types'
 
 export const statusOptions = ['收藏', '待投递', '已投递', '笔试', '面试中', '一面', '二面', '三面', '四面', '主管面', 'HR 面', 'Offer', '淘汰']
 export const typeOptions = [
@@ -43,6 +43,11 @@ export const applicationApi = {
   batchRemove: (ids: number[]) => http.delete('/applications/batch', { data: { ids } }),
   resumeDownloadUrl: (id: number) => `/api/applications/${id}/resume/download`,
   status: (id: number, currentStatus: string) => http.patch(`/applications/${id}/status`, { currentStatus })
+}
+
+export const organizationApi = {
+  tree: () => http.get('/organization-units/tree') as Promise<OrganizationUnit[]>,
+  create: (data: Partial<OrganizationUnit>) => http.post('/organization-units', data) as Promise<OrganizationUnit>
 }
 
 export const interviewApi = {

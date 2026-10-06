@@ -3,6 +3,7 @@
   <div class="stat-grid dashboard-stat-grid">
     <div class="stat"><span>投递岗位</span><strong>{{ data.totalApplications || 0 }}</strong></div>
     <div class="stat"><span>投递企业</span><strong>{{ data.totalCompanies || 0 }}</strong></div>
+    <div class="stat"><span>涉及集团</span><strong>{{ data.totalGroups || 0 }}</strong></div>
     <div class="stat"><span>投递次数</span><strong>{{ data.totalSubmissions || 0 }}</strong></div>
     <div class="stat"><span>面试数量</span><strong>{{ data.interviewCount || 0 }}</strong></div>
     <div class="stat"><span>Offer 数量</span><strong>{{ data.offerCount || 0 }}</strong></div>
@@ -62,7 +63,14 @@
       <el-button text @click="recentExpanded = !recentExpanded">{{ recentExpanded ? '收起' : '展开' }}</el-button>
     </div>
     <el-table v-show="recentExpanded" :data="(data.recentApplications || []).slice(0, 5)">
-      <el-table-column prop="companyName" label="公司" min-width="130" show-overflow-tooltip />
+      <el-table-column label="招聘组织" min-width="230">
+        <template #default="{ row }">
+          <div class="organization-cell">
+            <strong>{{ row.employerNameSnapshot || row.companyName }}</strong>
+            <small v-if="row.organizationPathSnapshot && row.organizationPathSnapshot !== (row.employerNameSnapshot || row.companyName)">{{ row.organizationPathSnapshot }}</small>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column prop="positionName" label="岗位" min-width="170" show-overflow-tooltip />
       <el-table-column prop="positionType" label="岗位类别" min-width="170">
         <template #default="{ row }">

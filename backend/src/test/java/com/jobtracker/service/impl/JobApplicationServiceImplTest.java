@@ -8,6 +8,7 @@ import com.jobtracker.service.InterviewNoteService;
 import com.jobtracker.service.InterviewRecordService;
 import com.jobtracker.service.ReminderService;
 import com.jobtracker.service.ResumeService;
+import com.jobtracker.service.OrganizationUnitService;
 import com.jobtracker.vo.ApplicationCompanyGroupVO;
 import com.jobtracker.vo.ApplicationSubmissionVO;
 import org.junit.jupiter.api.Test;
@@ -64,7 +65,7 @@ class JobApplicationServiceImplTest {
         query.setPageNo(1L);
         query.setPageSize(2L);
 
-        var result = service.pageApplicationCompanies(query);
+        var result = service.pageApplicationCompanies(query, "company");
 
         assertThat(result.getTotal()).isEqualTo(3);
         assertThat(result.getRecords()).hasSize(2);
@@ -82,7 +83,8 @@ class JobApplicationServiceImplTest {
                 mock(InterviewNoteService.class),
                 mock(ResumeService.class),
                 mock(ReminderService.class),
-                new ObjectMapper()
+                new ObjectMapper(),
+                mock(OrganizationUnitService.class)
         );
         ReflectionTestUtils.setField(service, "baseMapper", mapper);
         return service;

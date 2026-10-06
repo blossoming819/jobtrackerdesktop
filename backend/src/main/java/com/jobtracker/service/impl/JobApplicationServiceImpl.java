@@ -17,6 +17,7 @@ import com.jobtracker.service.InterviewRecordService;
 import com.jobtracker.service.JobApplicationService;
 import com.jobtracker.service.ReminderService;
 import com.jobtracker.service.ResumeService;
+import com.jobtracker.service.OrganizationUnitService;
 import com.jobtracker.vo.ApplicationDetailVO;
 import com.jobtracker.vo.ApplicationCompanyGroupVO;
 import com.jobtracker.vo.ApplicationSubmissionVO;
@@ -59,6 +60,7 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
     private final ResumeService resumeService;
     private final ReminderService reminderService;
     private final ObjectMapper objectMapper;
+    private final OrganizationUnitService organizationUnitService;
 
     @Override
     public Page<JobApplication> pageApplications(ApplicationQueryDTO query) {
@@ -79,11 +81,14 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
     }
 
     @Override
-    public Page<ApplicationCompanyGroupVO> pageApplicationCompanies(ApplicationQueryDTO query) {
+    public Page<ApplicationCompanyGroupVO> pageApplicationCompanies(ApplicationQueryDTO query, String groupLevel) {
         List<JobApplication> applications = list(applicationQuery(query));
         Map<String, ApplicationCompanyGroupVO> groups = new LinkedHashMap<>();
         for (JobApplication application : applications) {
-            String companyName = normalizeCompanyName(application.getCompanyName());
+            String requestedName = "group".equalsIgnoreCase(groupLevel)
+                    ? application.getGroupNameSnapshot()
+                    : application.getEmployerNameSnapshot();
+            String companyName = normalizeCompanyName(StringUtils.hasText(requestedName) ? requestedName : application.getCompanyName());
             String companyKey = companyName.toLowerCase(Locale.ROOT);
             ApplicationCompanyGroupVO group = groups.computeIfAbsent(companyKey, ignored -> {
                 ApplicationCompanyGroupVO created = new ApplicationCompanyGroupVO();
@@ -143,8 +148,19 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
 
     private QueryWrapper<JobApplication> applicationQuery(ApplicationQueryDTO query) {
         QueryWrapper<JobApplication> wrapper = new QueryWrapper<>();
+        if (StringUtils.hasText(query.getCompanyName())) {
+            List<Long> organizationIds = organizationUnitService.searchIds(query.getCompanyName());
+            wrapper.and(value -> {
+                value.like("company_name", query.getCompanyName())
+                        .or().like("organization_path_snapshot", query.getCompanyName())
+                        .or().like("employer_name_snapshot", query.getCompanyName())
+                        .or().like("group_name_snapshot", query.getCompanyName());
+                if (!organizationIds.isEmpty()) {
+                    value.or().in("organization_unit_id", organizationIds);
+                }
+            });
+        }
         wrapper.lambda()
-                .like(StringUtils.hasText(query.getCompanyName()), JobApplication::getCompanyName, query.getCompanyName())
                 .eq(StringUtils.hasText(query.getCurrentStatus()), JobApplication::getCurrentStatus, query.getCurrentStatus())
                 .like(StringUtils.hasText(query.getPositionType()), JobApplication::getPositionType, query.getPositionType())
                 .eq(StringUtils.hasText(query.getRecruitmentType()), JobApplication::getRecruitmentType, query.getRecruitmentType())
@@ -220,6 +236,7 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
 
     @Override
     public JobApplication createApplication(JobApplication application) {
+        organizationUnitService.applyOrganization(application);
         prepareNewSubmission(application);
         save(application);
         return application;
@@ -233,6 +250,8 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
             throw new IllegalArgumentException("用于复用的原投递记录不存在");
         }
         application.setId(null);
+        inheritOrganization(source, application);
+        organizationUnitService.applyOrganization(application);
         if (!sameSubmission) {
             prepareNewSubmission(application);
             save(application);
@@ -268,6 +287,27 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
         }
         save(application);
         return application;
+    }
+
+    @Override
+    @Transactional
+    public JobApplication updateApplication(JobApplication application) {
+        if (application.getId() == null || getById(application.getId()) == null) {
+            throw new IllegalArgumentException("投递记录不存在");
+        }
+        organizationUnitService.applyOrganization(application);
+        updateById(application);
+        return application;
+    }
+
+    private void inheritOrganization(JobApplication source, JobApplication target) {
+        if (target.getOrganizationUnitId() != null) return;
+        target.setSubmissionOrganizationId(source.getSubmissionOrganizationId());
+        target.setEmployerOrganizationId(source.getEmployerOrganizationId());
+        target.setOrganizationUnitId(source.getOrganizationUnitId());
+        target.setOrganizationPathSnapshot(source.getOrganizationPathSnapshot());
+        target.setEmployerNameSnapshot(source.getEmployerNameSnapshot());
+        target.setGroupNameSnapshot(source.getGroupNameSnapshot());
     }
 
     private void prepareNewSubmission(JobApplication application) {

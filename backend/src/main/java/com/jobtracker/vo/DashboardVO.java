@@ -11,6 +11,7 @@ import java.util.Map;
 public class DashboardVO {
     private Long totalApplications;
     private Long totalCompanies;
+    private Long totalGroups;
     private Long totalSubmissions;
     private Long interviewCount;
     private Long offerCount;

@@ -13,13 +13,14 @@ import java.util.List;
 public interface JobApplicationService extends IService<JobApplication> {
     Page<JobApplication> pageApplications(ApplicationQueryDTO query);
     Page<ApplicationSubmissionVO> pageApplicationSubmissions(ApplicationQueryDTO query);
-    Page<ApplicationCompanyGroupVO> pageApplicationCompanies(ApplicationQueryDTO query);
+    Page<ApplicationCompanyGroupVO> pageApplicationCompanies(ApplicationQueryDTO query, String groupLevel);
     ApplicationDetailVO detail(Long id);
     List<String> statusOptions();
     List<String> positionTypeOptions();
     List<String> resumeCategoryOptions();
     JobApplication createApplication(JobApplication application);
     JobApplication createFromApplication(Long sourceId, JobApplication application, boolean sameSubmission);
+    JobApplication updateApplication(JobApplication application);
     void updateStatus(Long id, String status);
     void deleteByIds(List<Long> ids);
 }

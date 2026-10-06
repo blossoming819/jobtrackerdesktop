@@ -20,7 +20,7 @@
       </div>
       <div class="filter-actions">
         <el-segmented v-model="sortMode" :options="sortOptions" />
-        <el-switch v-model="groupByCompany" active-text="按公司合并" :disabled="batchMode" />
+        <el-segmented v-model="groupMode" :options="groupOptions" :disabled="batchMode" />
         <div class="action-spacer"></div>
         <el-button type="primary" @click="load">查询</el-button>
         <el-button @click="resetQuery">重置</el-button>
@@ -42,23 +42,22 @@
 
     <el-table class="applications-table" ref="applicationTableRef" :data="displayRows" row-key="rowKey" :row-class-name="applicationRowClass" @selection-change="handleSelectionChange" @row-click="handleRowClick">
       <el-table-column v-if="batchMode" type="selection" width="48" :selectable="selectableRow" />
-      <el-table-column prop="companyName" label="公司" min-width="200">
+      <el-table-column prop="companyName" label="招聘组织" min-width="230">
         <template #default="{ row }">
           <div v-if="row.isGroup" class="company-group-title">
-            <el-tooltip :content="row.companyName" placement="top" :disabled="!row.companyName">
-              <strong class="table-ellipsis">{{ row.companyName }}</strong>
-            </el-tooltip>
+            <strong>{{ row.companyName }}</strong>
           </div>
-          <el-tooltip v-else :content="row.companyName" placement="top" :disabled="!row.companyName">
-            <strong class="table-ellipsis" :class="{ 'company-child-name': groupByCompany }">{{ row.companyName }}</strong>
-          </el-tooltip>
+          <div v-else class="organization-cell" :class="{ 'company-child-name': groupMode !== 'none' }">
+            <strong>{{ employerDisplay(row) }}</strong>
+            <small v-if="organizationPath(row) !== employerDisplay(row)">{{ organizationPath(row) }}</small>
+          </div>
         </template>
       </el-table-column>
-      <el-table-column prop="positionName" label="岗位" min-width="180">
+      <el-table-column prop="positionName" label="岗位" min-width="160">
         <template #default="{ row }">
           <div v-if="row.isGroup" class="company-group-summary">
             <el-tag size="small" class="company-count">{{ groupPositionCount(row.groupChildren) }} 个岗位</el-tag>
-            <span>同公司投递合集</span>
+            <span>{{ groupMode === 'group' ? '同集团招聘合集' : '同企业投递合集' }}</span>
           </div>
           <button v-else-if="row.multiPreference" class="submission-summary-button" @click.stop="openPreferenceDialog(row)">
             <span>多志愿投递</span>
@@ -72,7 +71,7 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="positionType" label="岗位类别" min-width="160">
+      <el-table-column prop="positionType" label="岗位类别" min-width="145">
         <template #default="{ row }">
           <el-tooltip v-if="!row.isGroup" :content="row.positionType || '-'" placement="top" :disabled="!row.positionType">
             <div class="multi-tag-cell">
@@ -84,7 +83,7 @@
         </template>
       </el-table-column>
       <el-table-column prop="recruitmentType" label="投递批次" width="84" show-overflow-tooltip />
-      <el-table-column prop="resumeCategory" label="简历类别" min-width="160">
+      <el-table-column prop="resumeCategory" label="简历类别" min-width="145">
         <template #default="{ row }">
           <el-tooltip v-if="!row.isGroup" :content="row.resumeCategory || '-'" placement="top" :disabled="!row.resumeCategory">
             <div class="multi-tag-cell">
@@ -103,7 +102,7 @@
           </span>
         </template>
       </el-table-column>
-      <el-table-column prop="appliedTime" label="投递时间" width="150">
+      <el-table-column prop="appliedTime" label="投递时间" width="140">
         <template #default="{ row }">{{ row.isGroup ? '' : formatDate(row.appliedTime) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="180">
@@ -154,9 +153,29 @@
         已复用公司、招聘批次、地点、来源和简历信息；岗位名称、JD、链接、简历及其他字段都可独立修改。
       </el-alert>
       <el-row :gutter="12">
-        <el-col :span="12"><el-form-item label="公司名称"><el-input v-model="form.companyName" /></el-form-item></el-col>
+        <el-col :span="12"><el-form-item label="公司名称"><el-input v-model="form.companyName" placeholder="简单公司可直接填写" /></el-form-item></el-col>
         <el-col :span="12"><el-form-item label="岗位名称"><el-input v-model="form.positionName" /></el-form-item></el-col>
       </el-row>
+      <el-form-item label="组织归属">
+        <div class="organization-picker-row">
+          <el-cascader
+            v-model="form.organizationUnitId"
+            :options="organizationTree"
+            :props="organizationCascaderProps"
+            clearable
+            filterable
+            placeholder="复杂企业可选择集团 / 子公司 / 部门；简单公司可不选"
+            @change="handleOrganizationChange"
+          />
+          <el-button @click="openOrganizationDialog">新建组织节点</el-button>
+        </div>
+        <div v-if="form.organizationPathSnapshot" class="organization-form-summary">
+          <span>完整路径：{{ form.organizationPathSnapshot }}</span>
+          <span>招聘企业：{{ form.employerNameSnapshot || form.companyName }}</span>
+          <span>所属集团：{{ form.groupNameSnapshot || form.companyName }}</span>
+        </div>
+        <div v-else class="form-item-hint">不选择时会把公司名称自动保存为一级公司节点。</div>
+      </el-form-item>
       <el-row :gutter="12">
         <el-col :span="12">
           <el-form-item label="岗位类别">
@@ -239,7 +258,7 @@
     </template>
   </el-dialog>
 
-  <el-dialog v-model="preferenceDialogVisible" title="同次网申志愿" width="min(1040px, 94vw)" class="preference-dialog">
+  <el-dialog v-model="preferenceDialogVisible" title="同次网申志愿" width="min(1240px, 96vw)" class="preference-dialog">
     <div class="preference-dialog-summary">
       <div><span>公司</span><strong>{{ selectedSubmission?.companyName }}</strong></div>
       <div><span>投递批次</span><strong>{{ selectedSubmission?.recruitmentType || '-' }}</strong></div>
@@ -250,6 +269,9 @@
         <template #default="{ row }"><el-tag size="small">第 {{ row.preferenceOrder }} 志愿</el-tag></template>
       </el-table-column>
       <el-table-column prop="positionName" label="岗位" min-width="190" show-overflow-tooltip />
+      <el-table-column label="所属组织" min-width="220">
+        <template #default="{ row }"><span class="organization-path-full">{{ organizationPath(row) }}</span></template>
+      </el-table-column>
       <el-table-column prop="positionType" label="岗位类别" min-width="130" show-overflow-tooltip />
       <el-table-column prop="resumeCategory" label="简历类别" min-width="120" show-overflow-tooltip />
       <el-table-column prop="currentStatus" label="状态" width="100" />
@@ -270,14 +292,38 @@
       <el-button type="primary" @click="addPreferenceFromDialog">添加下一志愿</el-button>
     </template>
   </el-dialog>
+
+  <el-dialog v-model="organizationDialogVisible" title="新建组织节点" width="min(620px, 92vw)" class="organization-dialog">
+    <el-alert title="选择上级后创建一个下级节点；可反复创建，从集团一直建立到部门或团队。" type="info" :closable="false" show-icon />
+    <el-form :model="organizationDraft" label-width="96px" class="organization-create-form">
+      <el-form-item label="上级组织">
+        <el-cascader v-model="organizationDraft.parentId" :options="organizationTree" :props="organizationCascaderProps" clearable filterable placeholder="不选表示一级组织" />
+      </el-form-item>
+      <el-form-item label="组织名称" required><el-input v-model="organizationDraft.name" maxlength="200" /></el-form-item>
+      <el-form-item label="组织类型">
+        <el-select v-model="organizationDraft.unitType">
+          <el-option v-for="item in organizationTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="企业主体">
+        <el-switch v-model="organizationDraft.companyEntity" active-text="计入投递企业统计" />
+        <div class="form-item-hint">集团通常不勾选；公司、子公司或分公司可按实际招聘主体勾选。</div>
+      </el-form-item>
+      <el-form-item label="别名"><el-input v-model="organizationDraft.aliases" placeholder="多个别名可用顿号分隔，便于搜索" /></el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="organizationDialogVisible = false">取消</el-button>
+      <el-button type="primary" @click="createOrganization">创建并选中</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
 import { ChatDotRound, CircleCheck, Collection, EditPen, Medal, Promotion, Star, User, Warning } from '@element-plus/icons-vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { applicationApi, candidateProfileApi, recruitmentTypeOptions, resumeApi, resumeCategoryOptions, statusOptions, storageApi, typeOptions } from '../api'
-import type { CandidateProfileSummary, JobApplication, Resume } from '../types'
+import { applicationApi, candidateProfileApi, organizationApi, recruitmentTypeOptions, resumeApi, resumeCategoryOptions, statusOptions, storageApi, typeOptions } from '../api'
+import type { CandidateProfileSummary, JobApplication, OrganizationUnit, Resume } from '../types'
 import { formatDateTime } from '../utils/time'
 import { parseSavedResumeNamingTemplates, renderResumeName, resumeNamingPresets, templateForSelection } from '../utils/resumeNaming'
 
@@ -292,7 +338,26 @@ const dynamicResumeCategoryOptions = ref<string[]>([...resumeCategoryOptions])
 const total = ref(0)
 const dialogVisible = ref(false)
 const resumeUploading = ref(false)
-const groupByCompany = ref(false)
+const groupMode = ref<'none' | 'company' | 'group'>('none')
+const groupOptions = [
+  { label: '不合并', value: 'none' },
+  { label: '按招聘企业', value: 'company' },
+  { label: '按集团', value: 'group' }
+]
+const organizationTree = ref<OrganizationUnit[]>([])
+const organizationDialogVisible = ref(false)
+const organizationDraft = reactive<Partial<OrganizationUnit>>({ name: '', unitType: 'COMPANY', companyEntity: true, active: true })
+const organizationCascaderProps = { value: 'id', label: 'name', children: 'children', emitPath: false, checkStrictly: true }
+const organizationTypeOptions = [
+  { label: '集团', value: 'GROUP' },
+  { label: '公司', value: 'COMPANY' },
+  { label: '子公司', value: 'SUBSIDIARY' },
+  { label: '分公司', value: 'BRANCH' },
+  { label: '事业部', value: 'BUSINESS_UNIT' },
+  { label: '部门', value: 'DEPARTMENT' },
+  { label: '团队', value: 'TEAM' },
+  { label: '其他', value: 'OTHER' }
+]
 const dateRange = ref<string[]>([])
 const sortMode = ref('appliedTime-desc')
 const batchMode = ref(false)
@@ -344,7 +409,7 @@ const preferenceRows = computed(() => [...(selectedSubmission.value?.preferences
   .sort((left, right) => (left.preferenceOrder || 0) - (right.preferenceOrder || 0)))
 
 const displayRows = computed<ApplicationRow[]>(() => {
-  if (!groupByCompany.value) {
+  if (groupMode.value === 'none') {
     return rows.value.map(row => ({ ...row, rowKey: submissionRowKey(row) }))
   }
   return rows.value.flatMap((group, index) => {
@@ -377,13 +442,13 @@ watch(sortMode, value => {
   load()
 })
 
-watch(groupByCompany, () => {
+watch(groupMode, () => {
   query.pageNo = 1
   load()
 })
 
 onMounted(async () => {
-  await Promise.all([load(), loadResumes(), loadProfileVersions(), loadFilterOptions(), loadNamingSettings()])
+  await Promise.all([load(), loadResumes(), loadProfileVersions(), loadFilterOptions(), loadNamingSettings(), loadOrganizationTree()])
 })
 
 watch(() => [
@@ -440,11 +505,11 @@ function queryParams() {
 
 async function load() {
   const requestId = ++loadRequestId
-  const grouped = groupByCompany.value
+  const grouped = groupMode.value !== 'none'
   const page: any = grouped
-    ? await applicationApi.pageGroupedByCompany(queryParams())
+    ? await applicationApi.pageGroupedByCompany({ ...queryParams(), groupLevel: groupMode.value })
     : await loadSubmissionPage()
-  if (requestId !== loadRequestId || grouped !== groupByCompany.value) return
+  if (requestId !== loadRequestId || grouped !== (groupMode.value !== 'none')) return
   rows.value = grouped
     ? page.records.map((group: ApplicationRow, index: number) => ({
         ...group,
@@ -506,13 +571,85 @@ function groupPositionCount(groupChildren?: ApplicationRow[]) {
 
 function applicationRowClass({ row }: { row: ApplicationRow }) {
   if (row.isGroup) return 'company-group-row'
-  return [groupByCompany.value ? 'company-child-row' : '', row.multiPreference ? 'submission-group-row' : '']
+  return [groupMode.value !== 'none' ? 'company-child-row' : '', row.multiPreference ? 'submission-group-row' : '']
     .filter(Boolean)
     .join(' ')
 }
 
 async function loadResumes() {
   resumes.value = await resumeApi.list() as unknown as Resume[]
+}
+
+async function loadOrganizationTree() {
+  organizationTree.value = await organizationApi.tree()
+}
+
+function findOrganizationContext(id?: number) {
+  if (!id) return undefined
+  const visit = (nodes: OrganizationUnit[], parents: OrganizationUnit[]): OrganizationUnit[] | undefined => {
+    for (const node of nodes) {
+      const path = [...parents, node]
+      if (node.id === id) return path
+      const found = visit(node.children || [], path)
+      if (found) return found
+    }
+    return undefined
+  }
+  return visit(organizationTree.value, [])
+}
+
+function handleOrganizationChange(value?: number) {
+  if (!value) {
+    form.submissionOrganizationId = undefined
+    form.employerOrganizationId = undefined
+    form.organizationPathSnapshot = undefined
+    form.employerNameSnapshot = undefined
+    form.groupNameSnapshot = undefined
+    return
+  }
+  const path = findOrganizationContext(value)
+  if (!path?.length) return
+  const root = path[0]
+  const employer = [...path].reverse().find(item => item.companyEntity) || root
+  form.submissionOrganizationId = root.id
+  form.employerOrganizationId = employer.id
+  form.organizationPathSnapshot = path.map(item => item.name).join(' / ')
+  form.employerNameSnapshot = employer.name
+  form.groupNameSnapshot = root.name
+  form.companyName = employer.name
+}
+
+function openOrganizationDialog() {
+  Object.assign(organizationDraft, {
+    parentId: form.organizationUnitId,
+    name: '',
+    unitType: form.organizationUnitId ? 'DEPARTMENT' : 'COMPANY',
+    companyEntity: !form.organizationUnitId,
+    aliases: '',
+    active: true
+  })
+  organizationDialogVisible.value = true
+}
+
+async function createOrganization() {
+  if (!organizationDraft.name?.trim()) {
+    ElMessage.warning('请填写组织名称')
+    return
+  }
+  const created = await organizationApi.create(organizationDraft)
+  await loadOrganizationTree()
+  form.organizationUnitId = created.id
+  handleOrganizationChange(created.id)
+  organizationDialogVisible.value = false
+  ElMessage.success('组织节点已创建并选中')
+}
+
+function employerDisplay(row: JobApplication) {
+  return row.employerNameSnapshot || row.companyName || '未填写公司'
+}
+
+function organizationPath(row: JobApplication) {
+  return row.organizationPathSnapshot || employerDisplay(row)
 }
 
 async function loadProfileVersions() {
@@ -601,7 +738,7 @@ const allCurrentPageSelected = computed(() => {
 })
 
 function enterBatchMode() {
-  groupByCompany.value = false
+  groupMode.value = 'none'
   query.pageNo = 1
   batchMode.value = true
   clearSelection()
@@ -786,6 +923,12 @@ function openQuickAdd(row: JobApplication, sameSubmission: boolean) {
   resetForm()
   Object.assign(form, {
     companyName: row.companyName,
+    submissionOrganizationId: row.submissionOrganizationId,
+    employerOrganizationId: row.employerOrganizationId,
+    organizationUnitId: row.organizationUnitId,
+    organizationPathSnapshot: row.organizationPathSnapshot,
+    employerNameSnapshot: row.employerNameSnapshot,
+    groupNameSnapshot: row.groupNameSnapshot,
     recruitmentType: row.recruitmentType,
     resumeCategory: row.resumeCategory,
     workLocation: row.workLocation,

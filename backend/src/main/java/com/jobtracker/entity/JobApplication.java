@@ -32,6 +32,12 @@ public class JobApplication extends BaseEntity {
     private LocalDateTime appliedTime;
     private String submissionGroupId;
     private Integer preferenceOrder;
+    private Long submissionOrganizationId;
+    private Long employerOrganizationId;
+    private Long organizationUnitId;
+    private String organizationPathSnapshot;
+    private String employerNameSnapshot;
+    private String groupNameSnapshot;
     private Long resumeId;
     private String profileId;
     private String remark;

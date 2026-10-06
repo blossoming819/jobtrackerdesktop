@@ -18,11 +18,30 @@ export interface JobApplication {
   appliedTime?: string
   submissionGroupId?: string
   preferenceOrder?: number
+  submissionOrganizationId?: number
+  employerOrganizationId?: number
+  organizationUnitId?: number
+  organizationPathSnapshot?: string
+  employerNameSnapshot?: string
+  groupNameSnapshot?: string
   multiPreference?: boolean
   preferences?: JobApplication[]
   resumeId?: number
   profileId?: string
   remark?: string
+}
+
+export interface OrganizationUnit {
+  id?: number
+  parentId?: number
+  name: string
+  unitType: string
+  companyEntity: boolean
+  aliases?: string
+  sortOrder?: number
+  active?: boolean
+  fullPath?: string
+  children?: OrganizationUnit[]
 }
 
 export interface InterviewRecord {

@@ -52,8 +52,11 @@ public class JobApplicationController {
     }
 
     @GetMapping("/grouped-by-company")
-    public Result<Page<ApplicationCompanyGroupVO>> pageGroupedByCompany(ApplicationQueryDTO query) {
-        return Result.ok(jobApplicationService.pageApplicationCompanies(query));
+    public Result<Page<ApplicationCompanyGroupVO>> pageGroupedByCompany(
+            ApplicationQueryDTO query,
+            @RequestParam(defaultValue = "company") String groupLevel
+    ) {
+        return Result.ok(jobApplicationService.pageApplicationCompanies(query, groupLevel));
     }
 
     @GetMapping("/status-options")
@@ -111,8 +114,7 @@ public class JobApplicationController {
     @PutMapping("/{id}")
     public Result<JobApplication> update(@PathVariable Long id, @RequestBody JobApplication application) {
         application.setId(id);
-        jobApplicationService.updateById(application);
-        return Result.ok(application);
+        return Result.ok(jobApplicationService.updateApplication(application));
     }
 
     @PatchMapping("/{id}/status")

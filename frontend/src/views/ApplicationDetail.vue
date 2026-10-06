@@ -3,6 +3,13 @@
 
   <div class="panel">
     <div class="application-summary-grid">
+      <div class="summary-label">招聘企业</div>
+      <div class="summary-value">{{ application.employerNameSnapshot || application.companyName || '-' }}</div>
+      <div class="summary-label">所属集团</div>
+      <div class="summary-value">{{ application.groupNameSnapshot || application.companyName || '-' }}</div>
+      <div class="summary-label">完整组织路径</div>
+      <div class="summary-value summary-value-last organization-path-full">{{ application.organizationPathSnapshot || application.companyName || '-' }}</div>
+
       <div class="summary-label">当前状态</div>
       <div class="summary-value">
         <span class="status-pill" :class="statusMeta(application.currentStatus).className">

@@ -35,7 +35,13 @@ public class DashboardServiceImpl implements DashboardService {
         DashboardVO vo = new DashboardVO();
         vo.setTotalApplications((long) applications.size());
         vo.setTotalCompanies(applications.stream()
-                .map(JobApplication::getCompanyName)
+                .map(this::employerName)
+                .map(this::normalizedCompanyKey)
+                .filter(name -> !name.isBlank())
+                .distinct()
+                .count());
+        vo.setTotalGroups(applications.stream()
+                .map(this::groupName)
                 .map(this::normalizedCompanyKey)
                 .filter(name -> !name.isBlank())
                 .distinct()
@@ -47,7 +53,7 @@ public class DashboardServiceImpl implements DashboardService {
         vo.setInterviewCount(interviewRecordService.count(new LambdaQueryWrapper<InterviewRecord>()));
         vo.setOfferCount(applications.stream().filter(item -> "Offer".equals(item.getCurrentStatus())).count());
         vo.setStatusCount(applications.stream().collect(Collectors.groupingBy(JobApplication::getCurrentStatus, LinkedHashMap::new, Collectors.counting())));
-        vo.setCompanyCount(applications.stream().collect(Collectors.groupingBy(JobApplication::getCompanyName, LinkedHashMap::new, Collectors.counting())));
+        vo.setCompanyCount(applications.stream().collect(Collectors.groupingBy(this::employerName, LinkedHashMap::new, Collectors.counting())));
         vo.setApplicationPeriodStats(applicationPeriodStats(applications));
         vo.setDailyTrend(dailyTrend(applications));
         vo.setWeeklyTrend(weeklyTrend(applications));
@@ -140,6 +146,18 @@ public class DashboardServiceImpl implements DashboardService {
 
     private String normalizedCompanyKey(String companyName) {
         return companyName == null ? "" : companyName.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+    }
+
+    private String employerName(JobApplication application) {
+        return application.getEmployerNameSnapshot() == null || application.getEmployerNameSnapshot().isBlank()
+                ? application.getCompanyName()
+                : application.getEmployerNameSnapshot();
+    }
+
+    private String groupName(JobApplication application) {
+        return application.getGroupNameSnapshot() == null || application.getGroupNameSnapshot().isBlank()
+                ? employerName(application)
+                : application.getGroupNameSnapshot();
     }
 
     private String submissionKey(JobApplication application) {

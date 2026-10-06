@@ -599,6 +599,16 @@ body { margin: 0; color: #172033; background: #f5f7fb; font-family: Inter, "Ping
 .company-group-summary { display: flex; align-items: center; gap: 9px; color: var(--jt-text-soft); white-space: nowrap; }
 .company-group-summary .company-count { margin-left: 0; }
 .company-child-name { display: block; padding-left: 27px; }
+.organization-cell { display: flex; min-width: 0; flex-direction: column; gap: 3px; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
+.organization-cell strong, .organization-cell small { display: block; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.organization-cell small { color: var(--jt-text-faint); font-size: 12px; }
+.organization-picker-row { display: flex; width: 100%; min-width: 0; align-items: center; gap: 8px; }
+.organization-picker-row .el-cascader { flex: 1 1 auto; min-width: 0; }
+.organization-picker-row .el-button { flex: 0 0 auto; white-space: nowrap; }
+.organization-form-summary { display: flex; width: 100%; flex-wrap: wrap; gap: 4px 14px; margin-top: 7px; color: var(--jt-text-soft); font-size: 12px; line-height: 1.5; }
+.organization-path-full { display: block; white-space: normal; overflow-wrap: anywhere; line-height: 1.45; }
+.organization-create-form { margin-top: 18px; }
+.organization-create-form .el-select, .organization-create-form .el-cascader { width: 100%; }
 .el-table .company-group-row > td.el-table__cell { background: #f7f3ec; border-top: 1px solid #e5ddd2; }
 .el-table .company-group-row:hover > td.el-table__cell { background: #f3ede4 !important; }
 .el-table .company-child-row > td.el-table__cell { background: #fffdf9; }
@@ -1170,6 +1180,8 @@ select {
   .application-dialog .el-radio-button { flex: 1 1 0; min-width: 0; }
   .application-dialog .el-radio-button__inner { width: 100%; padding-right: 8px; padding-left: 8px; white-space: nowrap; }
   .preference-dialog-summary { grid-template-columns: 1fr; }
+  .organization-picker-row { align-items: stretch; flex-direction: column; }
+  .organization-picker-row .el-button { width: 100%; }
 }
 
 .stat {
