@@ -606,7 +606,9 @@ async function loadSubmissionPage() {
 
 function collapseSubmissions(applications: ApplicationRow[]) {
   const grouped = new Map<string, ApplicationRow[]>()
+  const submissionParents = new Map<string, ApplicationRow>()
   applications.forEach(application => {
+    const isSubmissionParent = Boolean(application.multiPreference && application.submissionGroupId && application.preferences?.length)
     const sourceItems = application.multiPreference && application.preferences?.length
       ? application.preferences
       : [application]
@@ -616,12 +618,15 @@ function collapseSubmissions(applications: ApplicationRow[]) {
       const items = grouped.get(key) || []
       items.push(item)
       grouped.set(key, items)
+      // 公司/集团分组接口已返回父记录摘要；志愿明细只用于展开，不能覆盖父记录名称。
+      if (isSubmissionParent) submissionParents.set(key, application)
     })
   })
-  return Array.from(grouped.values()).map(items => {
+  return Array.from(grouped.entries()).map(([key, items]) => {
     const preferences = [...items].sort((left, right) => (left.preferenceOrder || 0) - (right.preferenceOrder || 0))
+    const parent = submissionParents.get(key)
     return {
-      ...items[0],
+      ...(parent || items[0]),
       multiPreference: items.length > 1,
       submissionParent: items.length > 1,
       preferenceCount: items.length,
