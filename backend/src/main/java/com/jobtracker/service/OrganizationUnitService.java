@@ -11,6 +11,7 @@ public interface OrganizationUnitService extends IService<OrganizationUnit> {
     List<OrganizationUnitTreeVO> tree();
     OrganizationUnit createUnit(OrganizationUnit unit);
     OrganizationUnit updateUnit(Long id, OrganizationUnit unit);
+    void deleteUnit(Long id);
     void applyOrganization(JobApplication application);
     List<Long> searchIds(String keyword);
 }

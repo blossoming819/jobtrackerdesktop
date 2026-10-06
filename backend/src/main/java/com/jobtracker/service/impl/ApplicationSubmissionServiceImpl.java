@@ -5,11 +5,15 @@ import com.jobtracker.entity.ApplicationSubmission;
 import com.jobtracker.entity.JobApplication;
 import com.jobtracker.mapper.ApplicationSubmissionMapper;
 import com.jobtracker.service.ApplicationSubmissionService;
+import com.jobtracker.service.OrganizationUnitService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
+@RequiredArgsConstructor
 public class ApplicationSubmissionServiceImpl extends ServiceImpl<ApplicationSubmissionMapper, ApplicationSubmission> implements ApplicationSubmissionService {
+    private final OrganizationUnitService organizationUnitService;
     @Override
     public ApplicationSubmission ensureFrom(JobApplication application) {
         if (!StringUtils.hasText(application.getSubmissionGroupId())) {
@@ -30,6 +34,33 @@ public class ApplicationSubmissionServiceImpl extends ServiceImpl<ApplicationSub
         copySharedFields(application, submission);
         updateById(submission);
         return submission;
+    }
+
+    @Override
+    public ApplicationSubmission updateSubmission(String id, ApplicationSubmission changes) {
+        ApplicationSubmission existing = getById(id);
+        if (existing == null) throw new IllegalArgumentException("本次网申父记录不存在");
+        if (!StringUtils.hasText(changes.getCompanyName())) throw new IllegalArgumentException("请填写公司名称");
+
+        JobApplication organizationSource = new JobApplication();
+        organizationSource.setCompanyName(changes.getCompanyName());
+        organizationSource.setOrganizationUnitId(changes.getOrganizationUnitId());
+        organizationUnitService.applyOrganization(organizationSource);
+
+        existing.setCompanyName(organizationSource.getCompanyName());
+        existing.setSubmissionOrganizationId(organizationSource.getSubmissionOrganizationId());
+        existing.setEmployerOrganizationId(organizationSource.getEmployerOrganizationId());
+        existing.setOrganizationUnitId(organizationSource.getOrganizationUnitId());
+        existing.setOrganizationPathSnapshot(organizationSource.getOrganizationPathSnapshot());
+        existing.setEmployerNameSnapshot(organizationSource.getEmployerNameSnapshot());
+        existing.setGroupNameSnapshot(organizationSource.getGroupNameSnapshot());
+        existing.setRecruitmentType(changes.getRecruitmentType());
+        existing.setWorkLocation(changes.getWorkLocation());
+        existing.setSource(changes.getSource());
+        existing.setAppliedTime(changes.getAppliedTime());
+        existing.setRemark(changes.getRemark());
+        updateById(existing);
+        return existing;
     }
 
     private void copySharedFields(JobApplication application, ApplicationSubmission submission) {

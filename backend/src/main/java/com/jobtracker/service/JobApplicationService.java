@@ -24,4 +24,5 @@ public interface JobApplicationService extends IService<JobApplication> {
     JobApplication updateApplication(JobApplication application);
     void updateStatus(Long id, String status);
     void deleteByIds(List<Long> ids);
+    void deleteApplication(Long id);
 }

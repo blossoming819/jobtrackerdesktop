@@ -1,11 +1,16 @@
 package com.jobtracker.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.jobtracker.entity.ApplicationSubmission;
 import com.jobtracker.entity.JobApplication;
 import com.jobtracker.entity.OrganizationUnit;
+import com.jobtracker.mapper.ApplicationSubmissionMapper;
+import com.jobtracker.mapper.JobApplicationMapper;
 import com.jobtracker.mapper.OrganizationUnitMapper;
 import com.jobtracker.service.OrganizationUnitService;
 import com.jobtracker.vo.OrganizationUnitTreeVO;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,8 +25,11 @@ import java.util.Locale;
 import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
 public class OrganizationUnitServiceImpl extends ServiceImpl<OrganizationUnitMapper, OrganizationUnit> implements OrganizationUnitService {
     private static final String PATH_SEPARATOR = " / ";
+    private final JobApplicationMapper jobApplicationMapper;
+    private final ApplicationSubmissionMapper applicationSubmissionMapper;
 
     @Override
     public List<OrganizationUnitTreeVO> tree() {
@@ -104,6 +112,39 @@ public class OrganizationUnitServiceImpl extends ServiceImpl<OrganizationUnitMap
         existing.setActive(unit.getActive() == null ? existing.getActive() : unit.getActive());
         updateById(existing);
         return existing;
+    }
+
+    @Override
+    @Transactional
+    public void deleteUnit(Long id) {
+        OrganizationUnit existing = getById(id);
+        if (existing == null) throw new IllegalArgumentException("组织节点不存在");
+        long childCount = lambdaQuery().eq(OrganizationUnit::getParentId, id).count();
+        if (childCount > 0) {
+            throw new IllegalArgumentException("该组织节点仍有 " + childCount + " 个下级节点，请先从最末级节点开始删除或调整层级");
+        }
+        long applicationCount = jobApplicationMapper.selectCount(new LambdaQueryWrapper<JobApplication>()
+                .and(wrapper -> wrapper.eq(JobApplication::getOrganizationUnitId, id)
+                        .or().eq(JobApplication::getSubmissionOrganizationId, id)
+                        .or().eq(JobApplication::getEmployerOrganizationId, id)));
+        if (applicationCount > 0) {
+            throw new IllegalArgumentException("该组织节点仍关联 " + applicationCount + " 条投递记录，请先删除或改绑相关岗位记录");
+        }
+
+        List<ApplicationSubmission> submissions = applicationSubmissionMapper.selectList(new LambdaQueryWrapper<ApplicationSubmission>()
+                .and(wrapper -> wrapper.eq(ApplicationSubmission::getOrganizationUnitId, id)
+                        .or().eq(ApplicationSubmission::getSubmissionOrganizationId, id)
+                        .or().eq(ApplicationSubmission::getEmployerOrganizationId, id)));
+        for (ApplicationSubmission submission : submissions) {
+            long preferenceCount = jobApplicationMapper.selectCount(new LambdaQueryWrapper<JobApplication>()
+                    .eq(JobApplication::getSubmissionGroupId, submission.getId()));
+            if (preferenceCount > 0) {
+                throw new IllegalArgumentException("该组织节点仍关联网申父记录，请先删除或改绑该记录下的岗位志愿");
+            }
+            // 清理历史上可能遗留的空父记录，不会影响任何岗位投递。
+            applicationSubmissionMapper.deleteById(submission.getId());
+        }
+        removeById(id);
     }
 
     private void assertNotDescendant(Long id, Long proposedParentId) {

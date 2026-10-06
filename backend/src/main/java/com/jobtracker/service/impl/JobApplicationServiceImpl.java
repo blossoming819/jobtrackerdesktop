@@ -389,11 +389,27 @@ public class JobApplicationServiceImpl extends ServiceImpl<JobApplicationMapper,
     }
 
     @Override
+    @Transactional
     public void deleteByIds(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return;
         }
+        Set<String> submissionIds = listByIds(ids).stream()
+                .map(JobApplication::getSubmissionGroupId)
+                .filter(StringUtils::hasText)
+                .collect(java.util.stream.Collectors.toSet());
         removeByIds(ids);
+        for (String submissionId : submissionIds) {
+            if (lambdaQuery().eq(JobApplication::getSubmissionGroupId, submissionId).count() == 0) {
+                applicationSubmissionService.removeById(submissionId);
+            }
+        }
+    }
+
+    @Override
+    public void deleteApplication(Long id) {
+        if (id == null) return;
+        deleteByIds(List.of(id));
     }
 
     private void addOption(Set<String> options, String value) {

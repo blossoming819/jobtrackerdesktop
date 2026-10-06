@@ -632,6 +632,9 @@ body { margin: 0; color: #172033; background: #f5f7fb; font-family: Inter, "Ping
 .preference-table { width: 100%; max-width: 100%; }
 .preference-row-actions { display: flex; width: 100%; min-width: 0; flex-wrap: nowrap; gap: 4px; }
 .preference-row-actions .el-button { flex: 1 1 0; min-width: 0; margin-left: 0; padding-right: 7px; padding-left: 7px; }
+.organization-manager-table { width: 100%; max-width: 100%; }
+.organization-manager-actions { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; white-space: nowrap; }
+.organization-manager-actions .el-button { margin-left: 0; flex: 0 0 auto; }
 .quick-add-alert { margin-bottom: 16px; }
 .submission-mode-hint { width: 100%; }
 .danger-dropdown-item { color: var(--el-color-danger); }

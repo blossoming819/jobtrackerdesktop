@@ -6,8 +6,10 @@ import com.jobtracker.dto.ApplicationQueryDTO;
 import com.jobtracker.dto.BatchApplicationIdsDTO;
 import com.jobtracker.dto.StatusUpdateDTO;
 import com.jobtracker.entity.JobApplication;
+import com.jobtracker.entity.ApplicationSubmission;
 import com.jobtracker.entity.Resume;
 import com.jobtracker.service.JobApplicationService;
+import com.jobtracker.service.ApplicationSubmissionService;
 import com.jobtracker.service.ResumeService;
 import com.jobtracker.vo.ApplicationDetailVO;
 import com.jobtracker.vo.ApplicationCompanyGroupVO;
@@ -39,6 +41,7 @@ import java.util.List;
 @RequestMapping("/api/applications")
 public class JobApplicationController {
     private final JobApplicationService jobApplicationService;
+    private final ApplicationSubmissionService applicationSubmissionService;
     private final ResumeService resumeService;
 
     @GetMapping
@@ -125,6 +128,11 @@ public class JobApplicationController {
         return Result.ok(jobApplicationService.updateApplication(application));
     }
 
+    @PutMapping("/submissions/{submissionId}")
+    public Result<ApplicationSubmission> updateSubmission(@PathVariable String submissionId, @RequestBody ApplicationSubmission submission) {
+        return Result.ok(applicationSubmissionService.updateSubmission(submissionId, submission));
+    }
+
     @PatchMapping("/{id}/status")
     public Result<Void> updateStatus(@PathVariable Long id, @Valid @RequestBody StatusUpdateDTO dto) {
         jobApplicationService.updateStatus(id, dto.getCurrentStatus());
@@ -139,7 +147,7 @@ public class JobApplicationController {
 
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
-        jobApplicationService.removeById(id);
+        jobApplicationService.deleteApplication(id);
         return Result.ok();
     }
 

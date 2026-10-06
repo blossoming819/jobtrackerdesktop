@@ -6,6 +6,7 @@ import com.jobtracker.service.OrganizationUnitService;
 import com.jobtracker.vo.OrganizationUnitTreeVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,5 +35,11 @@ public class OrganizationUnitController {
     @PutMapping("/{id}")
     public Result<OrganizationUnit> update(@PathVariable Long id, @RequestBody OrganizationUnit unit) {
         return Result.ok(organizationUnitService.updateUnit(id, unit));
+    }
+
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@PathVariable Long id) {
+        organizationUnitService.deleteUnit(id);
+        return Result.ok();
     }
 }

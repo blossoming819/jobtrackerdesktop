@@ -175,6 +175,7 @@
           />
           <el-button @click="openOrganizationDialog">新建组织节点</el-button>
           <el-button :disabled="!form.organizationUnitId" @click="openEditOrganizationDialog">编辑当前组织</el-button>
+          <el-button @click="organizationManagerVisible = true">管理组织节点</el-button>
         </div>
         <div v-if="form.organizationPathSnapshot" class="organization-form-summary">
           <span>完整路径：{{ form.organizationPathSnapshot }}</span>
@@ -296,8 +297,33 @@
     </el-table>
     <template #footer>
       <el-button @click="preferenceDialogVisible = false">关闭</el-button>
+      <el-button @click="openSubmissionEditor">编辑本次网申</el-button>
       <el-button type="primary" @click="addPreferenceFromDialog">添加下一志愿</el-button>
     </template>
+  </el-dialog>
+
+  <el-dialog v-model="submissionDialogVisible" title="编辑本次网申" width="min(820px, 92vw)" class="application-dialog">
+    <el-alert class="quick-add-alert" type="info" :closable="false" show-icon title="这里维护本次网申的公共信息。已存在的各志愿保留自己的岗位、简历、JD 和状态；以后新增志愿会复用这里的信息。" />
+    <el-form :model="submissionForm" label-width="110px">
+      <el-row :gutter="12">
+        <el-col :span="12"><el-form-item label="公司名称"><el-input v-model="submissionForm.companyName" :disabled="Boolean(submissionForm.organizationUnitId)" placeholder="简单公司可直接填写" /></el-form-item></el-col>
+        <el-col :span="12"><el-form-item label="投递批次"><el-select v-model="submissionForm.recruitmentType" filterable allow-create default-first-option clearable><el-option v-for="item in recruitmentTypeOptions" :key="item" :label="item" :value="item" /></el-select></el-form-item></el-col>
+      </el-row>
+      <el-form-item label="组织归属">
+        <div class="organization-picker-row">
+          <el-cascader v-model="submissionForm.organizationUnitId" :options="organizationTree" :props="organizationCascaderProps" clearable filterable placeholder="复杂企业可选择集团 / 子公司 / 部门" @change="handleSubmissionOrganizationChange" />
+          <el-button @click="openOrganizationDialog('submission')">新建组织节点</el-button>
+          <el-button :disabled="!submissionForm.organizationUnitId" @click="openEditSubmissionOrganizationDialog">编辑当前组织</el-button>
+          <el-button @click="organizationManagerVisible = true">管理组织节点</el-button>
+        </div>
+        <div v-if="submissionForm.organizationPathSnapshot" class="organization-form-summary"><span>完整路径：{{ submissionForm.organizationPathSnapshot }}</span><span>招聘企业：{{ submissionForm.employerNameSnapshot || submissionForm.companyName }}</span><span>所属集团：{{ submissionForm.groupNameSnapshot || submissionForm.companyName }}</span></div>
+        <div v-else class="form-item-hint">不选择时会把公司名称自动保存为一级公司节点。</div>
+      </el-form-item>
+      <el-row :gutter="12"><el-col :span="12"><el-form-item label="工作地点"><el-input v-model="submissionForm.workLocation" /></el-form-item></el-col><el-col :span="12"><el-form-item label="投递来源"><el-input v-model="submissionForm.source" /></el-form-item></el-col></el-row>
+      <el-form-item label="投递时间"><el-date-picker v-model="submissionForm.appliedTime" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" /></el-form-item>
+      <el-form-item label="父记录备注"><el-input v-model="submissionForm.remark" type="textarea" :rows="3" placeholder="仅记录本次网申的公共说明" /></el-form-item>
+    </el-form>
+    <template #footer><el-button @click="submissionDialogVisible = false">取消</el-button><el-button type="primary" @click="saveSubmission">保存父记录</el-button></template>
   </el-dialog>
 
   <el-dialog v-model="organizationDialogVisible" :title="organizationDialogTitle" width="min(620px, 92vw)" class="organization-dialog">
@@ -322,6 +348,17 @@
       <el-button @click="organizationDialogVisible = false">取消</el-button>
       <el-button type="primary" @click="saveOrganization">{{ organizationEditingId ? '保存修改' : '创建并选中' }}</el-button>
     </template>
+  </el-dialog>
+
+  <el-dialog v-model="organizationManagerVisible" title="组织节点管理" width="min(980px, 96vw)" class="organization-manager-dialog">
+    <el-alert title="节点只能在没有下级组织、且没有投递岗位或网申父记录引用时删除。请先删除或改绑关联记录，并从最末级节点开始清理。" type="warning" :closable="false" show-icon />
+    <el-table :data="flatOrganizationNodes" class="organization-manager-table" max-height="520">
+      <el-table-column prop="fullPath" label="完整路径" min-width="340" show-overflow-tooltip />
+      <el-table-column prop="unitType" label="类型" width="120" />
+      <el-table-column label="招聘企业" width="120"><template #default="{ row }">{{ row.companyEntity ? '是' : '否' }}</template></el-table-column>
+      <el-table-column label="操作" width="180"><template #default="{ row }"><div class="organization-manager-actions"><el-button size="small" @click="openEditOrganizationNode(row)">编辑</el-button><el-button size="small" type="danger" plain @click="removeOrganizationNode(row)">删除</el-button></div></template></el-table-column>
+    </el-table>
+    <template #footer><el-button @click="organizationManagerVisible = false">关闭</el-button></template>
   </el-dialog>
 </template>
 
@@ -353,7 +390,9 @@ const groupOptions = [
 ]
 const organizationTree = ref<OrganizationUnit[]>([])
 const organizationDialogVisible = ref(false)
+const organizationManagerVisible = ref(false)
 const organizationEditingId = ref<number>()
+const organizationDialogTarget = ref<'application' | 'submission'>('application')
 const organizationDraft = reactive<Partial<OrganizationUnit>>({ name: '', unitType: 'COMPANY', companyEntity: true, active: true })
 const organizationCascaderProps = { value: 'id', label: 'name', children: 'children', emitPath: false, checkStrictly: true }
 const organizationTypeOptions = [
@@ -380,6 +419,9 @@ const parentSubmissionId = ref<string>()
 const submissionMode = ref<'independent' | 'preference'>('independent')
 const preferenceDialogVisible = ref(false)
 const selectedSubmission = ref<ApplicationRow>()
+const submissionDialogVisible = ref(false)
+const editingSubmissionId = ref<string>()
+const submissionForm = reactive<JobApplication>(emptyForm())
 const namingSettings = reactive({ resumeOwnerName: '', resumeOwnerSchool: '', resumeGraduationYear: '', resumeCustomNamingTemplate: '', resumeCustomNamingTemplates: '' })
 const namingTemplates = computed(() => [
   ...resumeNamingPresets,
@@ -418,6 +460,15 @@ const dialogTitle = computed(() => {
 const organizationDialogTitle = computed(() => organizationEditingId.value ? '编辑组织节点' : '新建组织节点')
 const preferenceRows = computed(() => [...(selectedSubmission.value?.preferences || [])]
   .sort((left, right) => (left.preferenceOrder || 0) - (right.preferenceOrder || 0)))
+const flatOrganizationNodes = computed(() => {
+  const nodes: OrganizationUnit[] = []
+  const visit = (items: OrganizationUnit[]) => items.forEach(item => {
+    nodes.push(item)
+    visit(item.children || [])
+  })
+  visit(organizationTree.value)
+  return nodes
+})
 
 const displayRows = computed<ApplicationRow[]>(() => {
   if (groupMode.value === 'none') {
@@ -612,34 +663,44 @@ function findOrganizationContext(id?: number) {
   return visit(organizationTree.value, [])
 }
 
-function handleOrganizationChange(value?: number) {
+function applyOrganizationContext(target: JobApplication, value?: number | null) {
   if (!value) {
-    form.submissionOrganizationId = undefined
-    form.employerOrganizationId = undefined
-    form.organizationPathSnapshot = undefined
-    form.employerNameSnapshot = undefined
-    form.groupNameSnapshot = undefined
+    target.submissionOrganizationId = undefined
+    target.employerOrganizationId = undefined
+    target.organizationPathSnapshot = undefined
+    target.employerNameSnapshot = undefined
+    target.groupNameSnapshot = undefined
     return
   }
   const path = findOrganizationContext(value)
   if (!path?.length) return
   const root = path[0]
   const employer = [...path].reverse().find(item => item.companyEntity) || root
-  form.submissionOrganizationId = root.id
-  form.employerOrganizationId = employer.id
-  form.organizationPathSnapshot = path.map(item => item.name).join(' / ')
-  form.employerNameSnapshot = employer.name
-  form.groupNameSnapshot = root.name
-  form.companyName = employer.name
+  target.submissionOrganizationId = root.id
+  target.employerOrganizationId = employer.id
+  target.organizationPathSnapshot = path.map(item => item.name).join(' / ')
+  target.employerNameSnapshot = employer.name
+  target.groupNameSnapshot = root.name
+  target.companyName = employer.name
 }
 
-function openOrganizationDialog() {
+function handleOrganizationChange(value?: number | null) {
+  applyOrganizationContext(form, value)
+}
+
+function handleSubmissionOrganizationChange(value?: number | null) {
+  applyOrganizationContext(submissionForm, value)
+}
+
+function openOrganizationDialog(target: 'application' | 'submission' = 'application') {
+  organizationDialogTarget.value = target
+  const targetForm = target === 'submission' ? submissionForm : form
   organizationEditingId.value = undefined
   Object.assign(organizationDraft, {
-    parentId: form.organizationUnitId,
+    parentId: targetForm.organizationUnitId,
     name: '',
-    unitType: form.organizationUnitId ? 'DEPARTMENT' : 'COMPANY',
-    companyEntity: !form.organizationUnitId,
+    unitType: targetForm.organizationUnitId ? 'DEPARTMENT' : 'COMPANY',
+    companyEntity: !targetForm.organizationUnitId,
     aliases: '',
     active: true
   })
@@ -648,7 +709,15 @@ function openOrganizationDialog() {
 
 function openEditOrganizationDialog() {
   const path = findOrganizationContext(form.organizationUnitId)
-  const current = path?.[path.length - 1]
+  openEditOrganizationNode(path?.[path.length - 1])
+}
+
+function openEditSubmissionOrganizationDialog() {
+  const path = findOrganizationContext(submissionForm.organizationUnitId)
+  openEditOrganizationNode(path?.[path.length - 1])
+}
+
+function openEditOrganizationNode(current?: OrganizationUnit) {
   if (!current?.id) return
   organizationEditingId.value = current.id
   Object.assign(organizationDraft, {
@@ -672,11 +741,39 @@ async function saveOrganization() {
     ? await organizationApi.update(organizationEditingId.value, organizationDraft)
     : await organizationApi.create(organizationDraft)
   await loadOrganizationTree()
-  form.organizationUnitId = saved.id
-  handleOrganizationChange(saved.id)
+  if (organizationEditingId.value) {
+    if (form.organizationUnitId === saved.id) handleOrganizationChange(saved.id)
+    if (submissionForm.organizationUnitId === saved.id) handleSubmissionOrganizationChange(saved.id)
+  } else if (organizationDialogTarget.value === 'submission') {
+    submissionForm.organizationUnitId = saved.id
+    handleSubmissionOrganizationChange(saved.id)
+  } else {
+    form.organizationUnitId = saved.id
+    handleOrganizationChange(saved.id)
+  }
   organizationDialogVisible.value = false
   ElMessage.success(organizationEditingId.value ? '组织节点已更新' : '组织节点已创建并选中')
   organizationEditingId.value = undefined
+}
+
+async function removeOrganizationNode(node: OrganizationUnit) {
+  if (!node.id) return
+  try {
+    await ElMessageBox.confirm(`确认删除组织节点“${node.fullPath || node.name}”吗？只有无下级节点、且没有关联投递记录时才能删除。`, '删除组织节点', { type: 'warning' })
+  } catch {
+    return
+  }
+  await organizationApi.remove(node.id)
+  if (form.organizationUnitId === node.id) {
+    form.organizationUnitId = undefined
+    handleOrganizationChange(undefined)
+  }
+  if (submissionForm.organizationUnitId === node.id) {
+    submissionForm.organizationUnitId = undefined
+    handleSubmissionOrganizationChange(undefined)
+  }
+  await loadOrganizationTree()
+  ElMessage.success('组织节点已删除')
 }
 
 function employerDisplay(row: JobApplication) {
@@ -926,6 +1023,43 @@ function openPreferenceDialog(row: ApplicationRow) {
   if (!row.multiPreference) return
   selectedSubmission.value = row
   preferenceDialogVisible.value = true
+}
+
+function openSubmissionEditor() {
+  const row = selectedSubmission.value
+  if (!row?.submissionGroupId) return
+  Object.keys(submissionForm).forEach(key => delete (submissionForm as any)[key])
+  Object.assign(submissionForm, {
+    companyName: row.companyName || '',
+    recruitmentType: row.recruitmentType,
+    workLocation: row.workLocation,
+    source: row.source,
+    appliedTime: row.appliedTime,
+    remark: row.remark,
+    submissionOrganizationId: row.submissionOrganizationId,
+    employerOrganizationId: row.employerOrganizationId,
+    organizationUnitId: row.organizationUnitId,
+    organizationPathSnapshot: row.organizationPathSnapshot,
+    employerNameSnapshot: row.employerNameSnapshot,
+    groupNameSnapshot: row.groupNameSnapshot
+  })
+  editingSubmissionId.value = row.submissionGroupId
+  submissionDialogVisible.value = true
+}
+
+async function saveSubmission() {
+  if (!editingSubmissionId.value) return
+  if (!submissionForm.companyName?.trim()) {
+    ElMessage.warning('请填写公司名称')
+    return
+  }
+  const saved = await applicationApi.updateSubmission(editingSubmissionId.value, submissionForm)
+  Object.assign(submissionForm, saved)
+  submissionDialogVisible.value = false
+  await load()
+  const refreshed = rows.value.find(item => item.submissionGroupId === editingSubmissionId.value)
+  if (refreshed) selectedSubmission.value = refreshed
+  ElMessage.success('本次网申公共信息已保存')
 }
 
 function handleRowClick(row: ApplicationRow) {

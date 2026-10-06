@@ -39,6 +39,7 @@ export const applicationApi = {
   create: (data: JobApplication) => http.post('/applications', data),
   createFrom: (sourceId: number, data: JobApplication, sameSubmission: boolean) => http.post(`/applications/${sourceId}/create-from`, data, { params: { sameSubmission } }),
   createPreference: (submissionId: string, data: JobApplication) => http.post(`/applications/submissions/${submissionId}/preferences`, data),
+  updateSubmission: (submissionId: string, data: Partial<JobApplication>) => http.put(`/applications/submissions/${submissionId}`, data),
   update: (id: number, data: JobApplication) => http.put(`/applications/${id}`, data),
   remove: (id: number) => http.delete(`/applications/${id}`),
   batchRemove: (ids: number[]) => http.delete('/applications/batch', { data: { ids } }),
@@ -49,7 +50,8 @@ export const applicationApi = {
 export const organizationApi = {
   tree: () => http.get('/organization-units/tree') as Promise<OrganizationUnit[]>,
   create: (data: Partial<OrganizationUnit>) => http.post('/organization-units', data) as Promise<OrganizationUnit>,
-  update: (id: number, data: Partial<OrganizationUnit>) => http.put(`/organization-units/${id}`, data) as Promise<OrganizationUnit>
+  update: (id: number, data: Partial<OrganizationUnit>) => http.put(`/organization-units/${id}`, data) as Promise<OrganizationUnit>,
+  remove: (id: number) => http.delete(`/organization-units/${id}`)
 }
 
 export const interviewApi = {
