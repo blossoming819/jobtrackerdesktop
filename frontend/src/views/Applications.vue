@@ -696,7 +696,26 @@ function handleOrganizationChange(value?: number | null) {
 }
 
 function handleSubmissionOrganizationChange(value?: number | null) {
-  applyOrganizationContext(submissionForm, value)
+  if (!value) {
+    submissionForm.submissionOrganizationId = undefined
+    submissionForm.employerOrganizationId = undefined
+    submissionForm.organizationPathSnapshot = undefined
+    submissionForm.employerNameSnapshot = undefined
+    submissionForm.groupNameSnapshot = undefined
+    submissionForm.companyName = ''
+    return
+  }
+  const path = findOrganizationContext(value)
+  if (!path?.length) return
+  const root = path[0]
+  const selected = path[path.length - 1]
+  submissionForm.submissionOrganizationId = root.id
+  submissionForm.employerOrganizationId = selected.id
+  submissionForm.organizationPathSnapshot = path.map(item => item.name).join(' / ')
+  submissionForm.employerNameSnapshot = selected.name
+  submissionForm.groupNameSnapshot = root.name
+  // 父记录以用户选中的节点为准，不使用岗位层面的企业主体自动推导。
+  submissionForm.companyName = selected.name
 }
 
 function openOrganizationDialog(target: 'application' | 'submission' = 'application') {
